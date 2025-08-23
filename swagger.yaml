@@ -1492,6 +1492,122 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1/deviceData/{deviceId}/temperature:
+    post:
+      operationId: createDeviceTemperature
+      summary: Post temperature data from device
+      description: This method is used to post temperature data from devices. It's main purpose is to report their current temperature back to the server.
+      tags:
+        - DeviceData
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceDataTemperature'
+      responses:
+        '204':
+          description: Successful response
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/deviceData/{deviceId}/logs:
+    post:
+      operationId: createDeviceLog
+      summary: Post log data from device
+      description: This method is used to post log data from devices. It's main purpose is to report their current status back to the server.
+      tags:
+        - DeviceData
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceDataLog'
+      responses:
+        '204':
+          description: Successful response
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/deviceData/{deviceId}/status:
+    get:
+      operationId: getDeviceStatus
+      summary: Get expected status for a device
+      description: This method is used by devices to fetch their expected status from the server and to change their behavior accordingly.
+      tags:
+        - DeviceData
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDataStatus'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createDeviceStatus
+      summary: Post status from device
+      description: This method is used to post status updates from device. It's main purpose is to report their current status back to the server.
+      tags:
+        - DeviceData
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: The ID of the device
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceDataStatus'
+      responses:
+        '204':
+          description: Successful response
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1898,6 +2014,33 @@ components:
         - COOL_MASH_TANK
         - COOL_HOT_LIQUID_TANK
         - BOIL
+
+    DeviceDataTemperature:
+      type: object
+      required:
+        - deviceAddress
+        - temperature
+      properties:
+        temperature:
+          type: number
+          format: double
+
+    DeviceDataStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: integer
+          format: int32
+
+    DeviceDataLog:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
 
     Error:
       type: object
