@@ -1645,10 +1645,19 @@ components:
 
   schemas:
 
+    SessionStatus:
+      type: string
+      enum:
+        - DRAFT
+        - BREWING
+        - FERMENTING
+        - DONE
+
     Session:
       required:
         - name
         - deviceSetupId
+        - status
         - recipeIds
       properties:
         id:
@@ -1660,6 +1669,15 @@ components:
         deviceSetupId:
           type: string
           format: uuid
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        recipeIds:
+          type: array
+          readOnly: true
+          description: Ordered list of recipe IDs linked to this session (brew order).
+          items:
+            type: string
+            format: uuid
 
     SessionRecipe:
       type: object
