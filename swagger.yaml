@@ -15,7 +15,7 @@ paths:
         - DeviceSetups
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetup'
         description: Payload
@@ -99,7 +99,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetup'
         description: Payload
@@ -187,7 +187,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupDevice'
         description: Payload
@@ -264,7 +264,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupDevice'
         description: Payload
@@ -359,7 +359,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupPipe'
         description: Payload
@@ -436,7 +436,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupPipe'
         description: Payload
@@ -531,7 +531,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupScenario'
         description: Payload
@@ -608,7 +608,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupScenario'
         description: Payload
@@ -688,7 +688,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupScenarioDevice'
         description: Payload
@@ -779,7 +779,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/DeviceSetupScenarioDevice'
         description: Payload
@@ -844,7 +844,7 @@ paths:
         - Sessions
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/Session'
         description: Payload
@@ -928,7 +928,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/Session'
         description: Payload
@@ -991,7 +991,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/SessionRecipe'
         description: Payload
@@ -1097,7 +1097,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/SessionRecipe'
         description: Payload
@@ -1163,7 +1163,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/SessionActiveScenario'
         description: Payload
@@ -1298,7 +1298,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/SessionRecipeStep'
         description: Payload
@@ -1357,7 +1357,7 @@ paths:
         - Recipes
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/Recipe'
         description: Payload
@@ -1441,7 +1441,7 @@ paths:
             format: uuid
       requestBody:
         content:
-          application/json;charset=utf-8:
+          application/json:
             schema:
               $ref: '#/components/schemas/Recipe'
         description: Payload
