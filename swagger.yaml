@@ -1876,6 +1876,12 @@ components:
           description: Recipe id in the source system
         source:
           $ref: '#/components/schemas/RecipeSource'
+        stages:
+          type: array
+          readOnly: true
+          description: Brew plan stages resolved from the recipe source.
+          items:
+            $ref: '#/components/schemas/RecipeStage'
 
     RecipeSource:
       type: string
