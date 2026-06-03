@@ -1637,7 +1637,6 @@ components:
         - name
         - deviceSetupId
         - status
-        - recipeIds
       properties:
         id:
           type: string
