@@ -1483,6 +1483,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/brewery:
+    get:
+      operationId: getCurrentBrewery
+      summary: Get current brewery
+      description: Returns the brewery the authenticated user belongs to. Responds 404 when the user has no brewery yet (onboarding required).
+      tags:
+        - Breweries
+      responses:
+        "200":
+          description: The current brewery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brewery"
+        "404":
+          description: The user has no brewery yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createBrewery
+      summary: Create brewery
+      description: Creates a brewery and its Keycloak organization, adding the authenticated user as a member. Used during onboarding.
+      tags:
+        - Breweries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Brewery'
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: Created brewery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brewery"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: updateCurrentBrewery
+      summary: Update current brewery
+      description: Updates the current brewery (e.g. rename).
+      tags:
+        - Breweries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Brewery'
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: Updated brewery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brewery"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/system/syncRecipes:
     get:
       summary: Synchronize recipes from external sources
@@ -1882,6 +1961,19 @@ components:
           description: Brew plan stages resolved from the recipe source.
           items:
             $ref: '#/components/schemas/RecipeStage'
+
+    Brewery:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Brewery name
 
     RecipeSource:
       type: string
