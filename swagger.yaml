@@ -1804,6 +1804,7 @@ components:
         - thermometerDeviceId
         - time
         - temperature
+        - staleness
       properties:
         thermometerDeviceId:
           type: string
@@ -1813,20 +1814,34 @@ components:
           type: string
           format: date-time
           description: |
-            Time when the temperature was measured. If measurement is older than 5 minutes, the value should be considered stale
+            Time the thermometer was last seen (reported a reading), regardless of whether
+            the value crossed the persistence threshold. Use `staleness` for the WARN/ERROR state.
           readOnly: true
         temperature:
           description: |
-            Temperature in degrees Celsius.
+            Last reported temperature in degrees Celsius.
           type: number
           format: double
           readOnly: true
+        staleness:
+          $ref: '#/components/schemas/ThermometerStaleness'
         changePerMinute:
           type: number
           format: double
           description: |
             Temperature change per minute in degrees Celsius. If measurement is older than 5 minutes, the value is considered stale and will not be reported here.
           readOnly: true
+
+    ThermometerStaleness:
+      type: string
+      description: |
+        Liveness of a thermometer based on when it was last seen. WARNING at >= 5 minutes,
+        ERROR at >= 10 minutes. Stale thermometers are NOT failed-safe off — the brew master
+        is expected to notice and switch to a manual thermometer / manual control.
+      enum:
+        - OK
+        - WARNING
+        - ERROR
 
     SessionRecipeStep:
       type: object
