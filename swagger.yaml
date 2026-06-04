@@ -1348,6 +1348,39 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/events:
+    get:
+      operationId: streamSessionEvents
+      summary: Stream session events (SSE)
+      description: >
+        Server-Sent Events stream of updates for a session, so the UI can react in real time
+        instead of polling. Each event signals that the session changed; the client refetches
+        the affected data. The response is a text/event-stream; the generated server stub is
+        post-processed (see build.gradle.kts changeApiSpecStreamEndpoints) into a Multi SSE stream.
+      tags:
+        - SessionEvents
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: session event stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/SessionEvent"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/recipes:
     post:
       operationId: createRecipe
@@ -1842,6 +1875,22 @@ components:
         - OK
         - WARNING
         - ERROR
+
+    SessionEvent:
+      type: object
+      description: A server-sent event signalling that a session changed; the UI refetches on receipt.
+      required:
+        - sessionId
+        - type
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          readOnly: true
+        type:
+          description: Event type. Currently only SESSION_UPDATED.
+          type: string
+          readOnly: true
 
     SessionRecipeStep:
       type: object
