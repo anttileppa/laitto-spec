@@ -1611,36 +1611,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/deviceData/{deviceId}/temperature:
-    post:
-      operationId: createDeviceTemperature
-      summary: Post temperature data from device
-      description: This method is used to post temperature data from devices. It's main purpose is to report their current temperature back to the server.
-      tags:
-        - DeviceData
-      parameters:
-        - name: deviceId
-          in: path
-          required: true
-          description: The ID of the device
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeviceDataTemperature'
-      responses:
-        '204':
-          description: Successful response
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /v1/deviceData/{deviceId}/logs:
     post:
       operationId: createDeviceLog
@@ -1661,62 +1631,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DeviceDataLog'
-      responses:
-        '204':
-          description: Successful response
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /v1/deviceData/{deviceId}/status:
-    get:
-      operationId: getDeviceStatus
-      summary: Get expected status for a device
-      description: This method is used by devices to fetch their expected status from the server and to change their behavior accordingly.
-      tags:
-        - DeviceData
-      parameters:
-        - name: deviceId
-          in: path
-          required: true
-          description: The ID of the device
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceDataStatus'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    post:
-      operationId: createDeviceStatus
-      summary: Post status from device
-      description: This method is used to post status updates from device. It's main purpose is to report their current status back to the server.
-      tags:
-        - DeviceData
-      parameters:
-        - name: deviceId
-          in: path
-          required: true
-          description: The ID of the device
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeviceDataStatus'
       responses:
         '204':
           description: Successful response
@@ -1758,6 +1672,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ControllerSyncResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/deviceData/controllers/{controllerId}/orphan-devices:
+    get:
+      operationId: listControllerOrphanDevices
+      summary: List a controller's orphan devices
+      description: >
+        Lists devices seen reporting on this controller (via sync) that are not yet bound
+        to any device in a device setup. Lets the UI offer discovered devices to pick from
+        instead of typing their ids by hand. Backed by an in-memory registry, so the list
+        reflects what has reported since the backend last started.
+      tags:
+        - ControllerSync
+      parameters:
+        - name: controllerId
+          in: path
+          required: true
+          description: The controller id (e.g. the controller's MAC address)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The controller's orphan devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrphanDevice'
         default:
           description: unexpected error
           content:
@@ -2306,6 +2254,24 @@ components:
           format: int32
           minimum: 0
           maximum: 100
+
+    OrphanDevice:
+      type: object
+      description: A device seen reporting on a controller but not yet bound to a device setup.
+      required:
+        - deviceId
+      properties:
+        deviceId:
+          description: The controller-local device id the controller reported (e.g. ssr, relay-0)
+          type: string
+        lastTemperature:
+          description: The most recent temperature reported for this device, if any
+          type: number
+          format: double
+        lastSeenTime:
+          description: When this device was last seen reporting
+          type: string
+          format: date-time
 
     DeviceDataLog:
       type: object
