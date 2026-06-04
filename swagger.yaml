@@ -1694,6 +1694,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1/deviceData/controllers/{controllerId}/sync:
+    post:
+      operationId: syncController
+      summary: Synchronize a controller
+      description: >
+        Single round-trip endpoint for a controller (e.g. an ESP32): the controller
+        posts its current sensor readings and receives the expected device instructions
+        in the response. This minimizes the number of (TLS) requests a controller must
+        make per cycle. Unauthenticated: controllers identify themselves by controller id.
+      tags:
+        - ControllerSync
+      parameters:
+        - name: controllerId
+          in: path
+          required: true
+          description: The controller id (e.g. the controller's MAC address)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ControllerSyncRequest'
+      responses:
+        '200':
+          description: Expected device instructions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControllerSyncResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2155,6 +2193,55 @@ components:
         status:
           type: integer
           format: int32
+
+    ControllerSyncRequest:
+      type: object
+      required:
+        - readings
+      properties:
+        readings:
+          type: array
+          description: Current sensor readings from the controller's devices
+          items:
+            $ref: '#/components/schemas/ControllerSyncReading'
+
+    ControllerSyncReading:
+      type: object
+      required:
+        - deviceId
+        - temperature
+      properties:
+        deviceId:
+          type: string
+        temperature:
+          type: number
+          format: double
+
+    ControllerSyncResponse:
+      type: object
+      required:
+        - instructions
+      properties:
+        instructions:
+          type: array
+          description: Expected status for each controllable device of the controller
+          items:
+            $ref: '#/components/schemas/ControllerSyncInstruction'
+
+    ControllerSyncInstruction:
+      type: object
+      required:
+        - deviceId
+        - status
+      properties:
+        deviceId:
+          type: string
+        status:
+          description: Expected device status (0-100; SSR duty percentage or relay on/off)
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
 
     DeviceDataLog:
       type: object
