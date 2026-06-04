@@ -2074,6 +2074,13 @@ components:
         temperatureCorrection:
           type: number
           format: float
+        attachedToDeviceId:
+          description: >
+            Optional id of another device in the same setup this device is attached to (e.g. a
+            heater or thermometer attached to a vessel). Used to group accessories next to their
+            vessel in the diagram auto-layout.
+          type: string
+          format: uuid
         properties:
           $ref: '#/components/schemas/DeviceSetupDeviceProperties'
 
