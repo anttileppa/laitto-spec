@@ -2096,6 +2096,9 @@ components:
         diagramY:
           type: number
           format: float
+        locked:
+          description: When true the device is pinned in place and is not moved by the diagram auto-layout.
+          type: boolean
         inputPositions:
           type: array
           items:
