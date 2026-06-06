@@ -2024,6 +2024,22 @@ components:
         name:
           type: string
           description: Brewery name
+        brewfatherUserId:
+          type: string
+          description: >-
+            Brewfather API user id (the Basic-auth username). Returned so the UI can show the
+            connected account; null when the integration is not configured.
+        brewfatherApiKey:
+          type: string
+          writeOnly: true
+          description: >-
+            Brewfather API key (the Basic-auth password). Write-only — it is never returned.
+            On update: send a non-empty value together with brewfatherUserId to connect, send
+            an empty string to disconnect, or omit the field to leave the integration unchanged.
+        brewfatherConnected:
+          type: boolean
+          readOnly: true
+          description: True when Brewfather credentials are configured for this brewery.
 
     RecipeSource:
       type: string
