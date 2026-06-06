@@ -1670,21 +1670,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/system/syncRecipes:
+  /v1/brewfatherRecipes:
     get:
-      summary: Synchronize recipes from external sources
-      operationId: syncRecipes
+      operationId: listBrewfatherRecipes
+      summary: List importable Brewfather recipes
+      description: >-
+        Lists the recipes available in the brewery's connected Brewfather account, so the user can
+        pick one to import. Responds 400 when Brewfather is not connected for the brewery.
       tags:
-        - system
+        - Recipes
       responses:
-        '204':
-          description: Empty response indicating success
-        default:
-          description: unexpected error
+        "200":
+          description: Importable Brewfather recipes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrewfatherRecipe"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: importBrewfatherRecipe
+      summary: Import a single Brewfather recipe
+      description: >-
+        Imports one Brewfather recipe (by its source id) into the brewery's recipe library,
+        translating its mash and boil plan. Re-importing an already-imported recipe rebuilds it.
+      tags:
+        - Recipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrewfatherRecipeImport"
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: The imported recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /v1/deviceData/{deviceId}/logs:
     post:
@@ -2086,6 +2123,32 @@ components:
           description: Brew plan stages resolved from the recipe source.
           items:
             $ref: '#/components/schemas/RecipeStage'
+
+    BrewfatherRecipe:
+      type: object
+      required:
+        - sourceId
+        - name
+      description: A recipe available to import from the connected Brewfather account.
+      properties:
+        sourceId:
+          type: string
+          description: Recipe id in Brewfather
+        name:
+          type: string
+          description: Recipe name
+        imported:
+          type: boolean
+          description: True when this Brewfather recipe is already imported into the brewery
+
+    BrewfatherRecipeImport:
+      type: object
+      required:
+        - sourceId
+      properties:
+        sourceId:
+          type: string
+          description: Brewfather recipe id to import
 
     Brewery:
       type: object
