@@ -1595,6 +1595,81 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/brewery/members:
+    get:
+      operationId: listBreweryMembers
+      summary: List brewery members
+      description: Lists the members of the current brewery (the users in its Keycloak organization).
+      tags:
+        - Breweries
+      responses:
+        "200":
+          description: List of brewery members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BreweryMember"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createBreweryMember
+      summary: Add a member to the current brewery
+      description: >-
+        Adds an existing Laitto account to the current brewery by email. The account must already
+        exist; it is added to the brewery's Keycloak organization and gains access on next login.
+      tags:
+        - Breweries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BreweryMemberInvite"
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: The added member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreweryMember"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewery/members/{memberId}:
+    delete:
+      operationId: deleteBreweryMember
+      summary: Remove a member from the current brewery
+      description: Removes a member from the current brewery's Keycloak organization.
+      tags:
+        - Breweries
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          description: Keycloak user id of the member to remove
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/system/syncRecipes:
     get:
       summary: Synchronize recipes from external sources
@@ -2040,6 +2115,39 @@ components:
           type: boolean
           readOnly: true
           description: True when Brewfather credentials are configured for this brewery.
+
+    BreweryMember:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          type: string
+          description: Keycloak user id of the member
+          readOnly: true
+        email:
+          type: string
+          description: Member email address
+        firstName:
+          type: string
+          description: Member first name
+        lastName:
+          type: string
+          description: Member last name
+        self:
+          type: boolean
+          description: True when this member is the requesting user
+          readOnly: true
+
+    BreweryMemberInvite:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          description: Email of the existing Laitto account to add to the brewery
 
     RecipeSource:
       type: string
