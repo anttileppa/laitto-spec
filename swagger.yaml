@@ -2068,13 +2068,21 @@ components:
           items:
             $ref: '#/components/schemas/RecipeStageStep'
 
+    RecipeStageStepBoilTankStatus:
+      type: string
+      description: >-
+        What the boil kettle should be doing during a step. Drives the boil-kettle heat/boil
+        scenarios.
+      enum:
+        - NONE
+        - HEAT
+        - BOIL
+
     RecipeStageStep:
       type: object
       required:
         - duration
         - time
-        - orderNumber
-        - group
       properties:
         id:
           type: string
@@ -2083,20 +2091,28 @@ components:
         duration:
           type: integer
           format: int32
+          description: How long the step lasts, in seconds.
         name:
           type: string
         time:
           type: integer
           format: int32
+          description: Seconds remaining until the end of the stage when the step begins (a countdown).
         stepIndex:
           type: integer
           format: int32
+          description: Order of the step within its stage.
         targetMashTemperature:
           type: integer
           format: int32
         targetHotLiquidTemperature:
           type: integer
           format: int32
+        circulateMashTank:
+          type: boolean
+          description: Whether the mash tank should circulate during this step. Drives the mash circulation scenario.
+        boilTankStatus:
+          $ref: '#/components/schemas/RecipeStageStepBoilTankStatus'
 
     Recipe:
       type: object
@@ -2119,8 +2135,9 @@ components:
           $ref: '#/components/schemas/RecipeSource'
         stages:
           type: array
-          readOnly: true
-          description: Brew plan stages resolved from the recipe source.
+          description: >-
+            Brew plan stages. Returned on read, and accepted on update to replace the recipe's
+            stages and steps (e.g. editing the mash schedule or boil additions).
           items:
             $ref: '#/components/schemas/RecipeStage'
 
