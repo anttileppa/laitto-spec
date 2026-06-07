@@ -1866,6 +1866,25 @@ components:
           items:
             type: string
             format: uuid
+        manualMashTemperature:
+          type: number
+          format: double
+          description: >-
+            Manually entered mash temperature (°C). When set it overrides the mash thermometer
+            reading for control, to cover a missing or broken sensor. Omit to use the sensor.
+        manualHotLiquidTemperature:
+          type: number
+          format: double
+          description: >-
+            Manually entered hot liquid tank temperature (°C). When set it overrides the HLT
+            thermometer reading for control. Omit to use the sensor.
+        manualAmbientTemperature:
+          type: number
+          format: double
+          description: >-
+            Manually entered ambient temperature (°C). When set it overrides the ambient
+            thermometer (used as the grain temperature for strike calculations). Omit to use the
+            sensor, which itself falls back to a 20 °C default.
 
     SessionRecipe:
       type: object
@@ -2148,10 +2167,6 @@ components:
           type: number
           format: double
           description: Mash (strike) water volume in litres. Used to compute strike (pre-heat) temperatures.
-        grainTemperature:
-          type: integer
-          format: int32
-          description: Starting grain temperature in °C (typically ambient). Used to compute strike (pre-heat) temperatures.
         stages:
           type: array
           description: >-
