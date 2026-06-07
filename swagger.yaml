@@ -2369,6 +2369,7 @@ components:
         - HOT_LIQUID_TANK_THERMOMETER
         - HERMS_COIL_THERMOMETER
         - BOIL_KETTLE_THERMOMETER
+        - AMBIENT_THERMOMETER
 
     DeviceSetupScenario:
       type: object
