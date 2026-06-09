@@ -1955,21 +1955,32 @@ components:
         - WARNING
         - ERROR
 
+    SessionChange:
+      type: string
+      description: A part of a session that changed, so the client can refetch selectively.
+      enum:
+        - TEMPERATURES
+        - ACTIVE_SCENARIOS
+        - RECIPE_STEPS
+        - RECIPES
+
     SessionEvent:
       type: object
-      description: A server-sent event signalling that a session changed; the UI refetches on receipt.
+      description: A server-sent event listing which parts of a session changed; the UI refetches the affected data.
       required:
         - sessionId
-        - type
+        - changes
       properties:
         sessionId:
           type: string
           format: uuid
           readOnly: true
-        type:
-          description: Event type. Currently only SESSION_UPDATED.
-          type: string
+        changes:
+          type: array
           readOnly: true
+          description: Which parts of the session changed.
+          items:
+            $ref: '#/components/schemas/SessionChange'
 
     SessionRecipeStep:
       type: object
