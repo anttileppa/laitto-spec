@@ -2229,6 +2229,17 @@ components:
           type: boolean
           readOnly: true
           description: True when Brewfather credentials are configured for this brewery.
+        openaiApiKey:
+          type: string
+          writeOnly: true
+          description: >-
+            OpenAI API key. Write-only — it is never returned.
+            On update: send a non-empty value to connect, send an empty string to disconnect,
+            or omit the field to leave the integration unchanged.
+        openaiConnected:
+          type: boolean
+          readOnly: true
+          description: True when an OpenAI API key is configured for this brewery.
 
     BreweryMember:
       type: object
