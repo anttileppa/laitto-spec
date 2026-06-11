@@ -1761,9 +1761,12 @@ paths:
         Single round-trip endpoint for a controller (e.g. an ESP32): the controller
         posts its current sensor readings and receives the expected device instructions
         in the response. This minimizes the number of (TLS) requests a controller must
-        make per cycle. Unauthenticated: controllers identify themselves by controller id.
+        make per cycle. Authenticated with the controller token issued at registration;
+        the token must belong to the controller in the path.
       tags:
         - ControllerSync
+      security:
+        - controllerAuth: []
       parameters:
         - name: controllerId
           in: path
@@ -1825,12 +1828,166 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1/controllers/claims:
+    post:
+      operationId: createControllerClaim
+      summary: Claim a controller
+      description: >-
+        Starts onboarding a controller into the authenticated user's brewery. The serial comes
+        from the controller's QR sticker. Returns a one-time, short-lived claim token that the
+        app delivers to the controller over the encrypted BLE provisioning session; the
+        controller redeems it via POST /v1/controllers/register. The claim token is only
+        returned by this call, never again.
+      tags:
+        - Controllers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ControllerClaim'
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: Created claim, including the one-time claim token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControllerClaim"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/controllers/claims/{claimId}:
+    get:
+      operationId: findControllerClaim
+      summary: Find a controller claim
+      description: >-
+        Returns the claim's current status. The onboarding wizard polls this after delivering
+        the claim token over BLE: CONSUMED means the controller registered successfully.
+        The claim token itself is not returned.
+      tags:
+        - Controllers
+      parameters:
+        - name: claimId
+          required: true
+          in: path
+          description: claim id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The claim
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControllerClaim"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/controllers/register:
+    post:
+      operationId: registerController
+      summary: Register a controller
+      description: >-
+        Called by the controller itself (not a user) after it joins WiFi during onboarding.
+        Redeems the one-time claim token for a long-lived controller token, binding the
+        controller to the claim's brewery. Unauthenticated by design: the claim token is the
+        credential, created by an authenticated user and expiring after a short TTL.
+      tags:
+        - Controllers
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ControllerRegistrationRequest'
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: The issued controller credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControllerRegistration"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewery/controllers:
+    get:
+      operationId: listBreweryControllers
+      summary: List the current brewery's controllers
+      description: Lists the controllers registered to the current brewery, for management and revocation.
+      tags:
+        - Controllers
+      responses:
+        "200":
+          description: The brewery's controllers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Controller"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/controllers/{controllerId}/token:
+    delete:
+      operationId: revokeControllerToken
+      summary: Revoke a controller's token
+      description: >-
+        Revokes the controller's token: its sync and OTA calls start failing with 401 until it
+        is re-onboarded. The controller row and its history are kept.
+      tags:
+        - Controllers
+      parameters:
+        - name: controllerId
+          required: true
+          in: path
+          description: controller id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Token revoked
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    controllerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Opaque per-controller bearer token issued by POST /v1/controllers/register. Not a
+        Keycloak JWT; the backend validates it against the controller's stored token hash.
 
   schemas:
 
@@ -2551,6 +2708,110 @@ components:
       properties:
         message:
           type: string
+
+    ControllerClaimStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONSUMED
+        - EXPIRED
+
+    ControllerClaim:
+      type: object
+      required:
+        - serial
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        serial:
+          type: string
+          description: Controller serial from the QR sticker (e.g. LC16-2611-0042)
+        breweryId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Brewery the claim binds the controller to (the user's current brewery)
+        claimToken:
+          type: string
+          readOnly: true
+          description: >-
+            One-time claim token the app delivers to the controller over BLE. Only present in
+            the create response; subsequent reads omit it.
+        expiresAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the claim expires if not consumed
+        status:
+          $ref: '#/components/schemas/ControllerClaimStatus'
+
+    ControllerRegistrationRequest:
+      type: object
+      required:
+        - serial
+        - claimToken
+      properties:
+        serial:
+          type: string
+          description: The controller's serial
+        claimToken:
+          type: string
+          description: The one-time claim token received over BLE during onboarding
+
+    ControllerRegistration:
+      type: object
+      required:
+        - controllerId
+        - controllerToken
+      properties:
+        controllerId:
+          type: string
+          format: uuid
+          description: Backend id of the registered controller
+        controllerToken:
+          type: string
+          description: >-
+            Long-lived opaque bearer token. The controller stores it in NVS and sends it as
+            Authorization Bearer on sync and OTA calls. Only ever returned here; the backend
+            stores a hash.
+
+    ControllerStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - REVOKED
+
+    Controller:
+      type: object
+      required:
+        - serial
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        serial:
+          type: string
+          description: Controller serial (matches the QR sticker)
+        name:
+          type: string
+          description: User-given controller name
+        model:
+          type: string
+          description: Hardware model reported by the controller
+        firmwareVersion:
+          type: string
+          readOnly: true
+          description: Firmware version last reported via sync
+        lastSeenAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the controller last synced
+        status:
+          $ref: '#/components/schemas/ControllerStatus'
 
     Error:
       type: object
