@@ -1949,6 +1949,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/controllers/{controllerId}:
+    delete:
+      operationId: deleteController
+      summary: Remove a controller
+      description: >-
+        Removes the controller from the brewery entirely (and its onboarding claims). The
+        device keeps its stored token but the backend no longer knows it, so its sync/OTA
+        calls fail until it is onboarded again. Use this to decommission a controller; use
+        DELETE …/token to only revoke the credential while keeping the controller's record.
+      tags:
+        - Controllers
+      parameters:
+        - name: controllerId
+          required: true
+          in: path
+          description: controller id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Controller removed
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/controllers/{controllerId}/token:
     delete:
       operationId: revokeControllerToken
