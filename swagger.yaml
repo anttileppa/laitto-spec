@@ -2514,6 +2514,8 @@ components:
           type: string
         type:
           $ref: '#/components/schemas/DeviceSetupDeviceType'
+        controlMode:
+          $ref: '#/components/schemas/ControlMode'
         controllerIndex:
           type: integer
           format: int
@@ -2594,6 +2596,17 @@ components:
         - BOIL_KETTLE_THERMOMETER
         - AMBIENT_THERMOMETER
 
+    ControlMode:
+      type: string
+      description: >
+        How a switching output is driven. SSR runs time-proportional duty (solid-state, can
+        switch fast); CONTACTOR runs plain on/off (electromechanical — must not be fast-cycled).
+        Editable per device where its bound controller terminal is proportional-capable;
+        otherwise CONTACTOR. The controller clamps this to the terminal's capability.
+      enum:
+        - SSR
+        - CONTACTOR
+
     DeviceSetupScenario:
       type: object
       required:
@@ -2673,6 +2686,19 @@ components:
           description: Current sensor readings from the controller's devices
           items:
             $ref: '#/components/schemas/ControllerSyncReading'
+        firmwareVersion:
+          type: string
+          description: >
+            Firmware version the controller is running. Cheap to send every sync; lets the
+            backend detect an OTA/version change and refresh the cached channel inventory.
+        channels:
+          type: array
+          description: >
+            The controller's terminal inventory. Normally omitted; sent on the first sync after
+            boot or a firmware-version change (it is static between OTA updates), so the hot path
+            stays small.
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     ControllerSyncReading:
       type: object
@@ -2711,6 +2737,8 @@ components:
           format: int32
           minimum: 0
           maximum: 100
+        mode:
+          $ref: '#/components/schemas/ControlMode'
 
     OrphanDevice:
       type: object
@@ -2788,6 +2816,17 @@ components:
         claimToken:
           type: string
           description: The one-time claim token received over BLE during onboarding
+        model:
+          type: string
+          description: Board model the controller selected from its serial prefix (e.g. lc16-v1)
+        firmwareVersion:
+          type: string
+          description: Firmware version the controller is running
+        channels:
+          type: array
+          description: The controller's terminal inventory, reported once at registration
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     ControllerRegistration:
       type: object
@@ -2811,6 +2850,43 @@ components:
       enum:
         - ACTIVE
         - REVOKED
+
+    ChannelCapability:
+      type: string
+      description: >
+        What control a board terminal supports. BINARY = on/off only (contactor-grade);
+        PROPORTIONAL = can additionally run time-proportional duty (SSR-grade). A device's
+        controlMode must not exceed its terminal's capability.
+      enum:
+        - BINARY
+        - PROPORTIONAL
+
+    ChannelDirection:
+      type: string
+      enum:
+        - OUT
+        - IN
+
+    ControllerChannel:
+      type: object
+      description: >
+        One physical terminal the controller reports as part of its channel inventory, so the
+        UI can offer only real terminals (filtered by capability) and validate that a
+        replacement controller has the terminals a device setup needs.
+      required:
+        - terminal
+        - capability
+      properties:
+        terminal:
+          type: string
+          description: Stable terminal id (e.g. relay-12, ssr)
+        capability:
+          $ref: '#/components/schemas/ChannelCapability'
+        direction:
+          $ref: '#/components/schemas/ChannelDirection'
+        rating:
+          type: string
+          description: Advisory current/voltage rating from the board descriptor (e.g. 16A), if any
 
     Controller:
       type: object
@@ -2841,6 +2917,12 @@ components:
           description: When the controller last synced
         status:
           $ref: '#/components/schemas/ControllerStatus'
+        channels:
+          type: array
+          readOnly: true
+          description: The controller's last reported terminal inventory
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     Error:
       type: object
