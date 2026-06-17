@@ -2599,15 +2599,22 @@ components:
     ControlMode:
       type: string
       description: >
-        How a controllable output is driven. ON_OFF is plain on/off switching (e.g. a
-        contactor, relay or solenoid valve); PROPORTIONAL is time-proportional duty (e.g. an
-        SSR-driven heating element). Editable per device; the controller clamps it to the bound
-        terminal's capability (PROPORTIONAL requires a proportional-capable terminal, ON_OFF
-        works anywhere). More modes (e.g. MANUAL for hand-operated valves) may be added later —
-        additive, so this enum is named by control behaviour rather than switching hardware.
+        How a controllable output is driven:
+        ON_OFF — fully on or off (contactor, relay, solenoid valve);
+        TIME_PROPORTIONAL — on/off switched over a window so the time-average matches the duty,
+        i.e. "on 50% of the time" (SSR-driven heating element);
+        MODULATING — continuously variable output, i.e. "at 50% capacity now" (VFD pump,
+        0-10V/4-20mA device, proportional valve, phase-angle dimmer);
+        MANUAL — the controller drives nothing; an operator sets the device by hand (manual
+        valve), so the device is not bound to a terminal.
+        Editable per device; for driven modes the controller clamps the choice to the bound
+        terminal's supportedModes. Named by control behaviour, not switching hardware — signalling
+        details (PWM, 0-10V, phase-angle) are a terminal concern, not separate modes.
       enum:
         - ON_OFF
-        - PROPORTIONAL
+        - TIME_PROPORTIONAL
+        - MODULATING
+        - MANUAL
 
     DeviceSetupScenario:
       type: object
@@ -2853,16 +2860,6 @@ components:
         - ACTIVE
         - REVOKED
 
-    ChannelCapability:
-      type: string
-      description: >
-        What control a board terminal supports. BINARY = on/off only (contactor-grade, accepts
-        ON_OFF); PROPORTIONAL = can additionally run time-proportional duty (SSR-grade, accepts
-        ON_OFF or PROPORTIONAL). A device's controlMode must not exceed its terminal's capability.
-      enum:
-        - BINARY
-        - PROPORTIONAL
-
     ChannelDirection:
       type: string
       enum:
@@ -2873,17 +2870,24 @@ components:
       type: object
       description: >
         One physical terminal the controller reports as part of its channel inventory, so the
-        UI can offer only real terminals (filtered by capability) and validate that a
+        UI can offer only real terminals (filtered by the modes they support) and validate that a
         replacement controller has the terminals a device setup needs.
       required:
         - terminal
-        - capability
+        - supportedModes
       properties:
         terminal:
           type: string
           description: Stable terminal id (e.g. relay-12, ssr)
-        capability:
-          $ref: '#/components/schemas/ChannelCapability'
+        supportedModes:
+          type: array
+          description: >
+            Driven control modes this terminal can physically do — a subset of ON_OFF,
+            TIME_PROPORTIONAL, MODULATING. A device bound to this terminal must pick a controlMode
+            from this list. MANUAL is a device-level choice (the device is unbound from any
+            terminal) and is never listed here.
+          items:
+            $ref: '#/components/schemas/ControlMode'
         direction:
           $ref: '#/components/schemas/ChannelDirection'
         rating:
