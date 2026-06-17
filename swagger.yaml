@@ -2514,6 +2514,8 @@ components:
           type: string
         type:
           $ref: '#/components/schemas/DeviceSetupDeviceType'
+        controlMode:
+          $ref: '#/components/schemas/ControlMode'
         controllerIndex:
           type: integer
           format: int
@@ -2594,6 +2596,26 @@ components:
         - BOIL_KETTLE_THERMOMETER
         - AMBIENT_THERMOMETER
 
+    ControlMode:
+      type: string
+      description: >
+        How a controllable output is driven:
+        ON_OFF — fully on or off (contactor, relay, solenoid valve);
+        TIME_PROPORTIONAL — on/off switched over a window so the time-average matches the duty,
+        i.e. "on 50% of the time" (SSR-driven heating element);
+        MODULATING — continuously variable output, i.e. "at 50% capacity now" (VFD pump,
+        0-10V/4-20mA device, proportional valve, phase-angle dimmer);
+        MANUAL — the controller drives nothing; an operator sets the device by hand (manual
+        valve), so the device is not bound to a terminal.
+        Editable per device; for driven modes the controller clamps the choice to the bound
+        terminal's supportedModes. Named by control behaviour, not switching hardware — signalling
+        details (PWM, 0-10V, phase-angle) are a terminal concern, not separate modes.
+      enum:
+        - ON_OFF
+        - TIME_PROPORTIONAL
+        - MODULATING
+        - MANUAL
+
     DeviceSetupScenario:
       type: object
       required:
@@ -2673,6 +2695,19 @@ components:
           description: Current sensor readings from the controller's devices
           items:
             $ref: '#/components/schemas/ControllerSyncReading'
+        firmwareVersion:
+          type: string
+          description: >
+            Firmware version the controller is running. Cheap to send every sync; lets the
+            backend detect an OTA/version change and refresh the cached channel inventory.
+        channels:
+          type: array
+          description: >
+            The controller's terminal inventory. Normally omitted; sent on the first sync after
+            boot or a firmware-version change (it is static between OTA updates), so the hot path
+            stays small.
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     ControllerSyncReading:
       type: object
@@ -2711,6 +2746,8 @@ components:
           format: int32
           minimum: 0
           maximum: 100
+        mode:
+          $ref: '#/components/schemas/ControlMode'
 
     OrphanDevice:
       type: object
@@ -2788,6 +2825,17 @@ components:
         claimToken:
           type: string
           description: The one-time claim token received over BLE during onboarding
+        model:
+          type: string
+          description: Board model the controller selected from its serial prefix (e.g. lc16-v1)
+        firmwareVersion:
+          type: string
+          description: Firmware version the controller is running
+        channels:
+          type: array
+          description: The controller's terminal inventory, reported once at registration
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     ControllerRegistration:
       type: object
@@ -2811,6 +2859,40 @@ components:
       enum:
         - ACTIVE
         - REVOKED
+
+    ChannelDirection:
+      type: string
+      enum:
+        - OUT
+        - IN
+
+    ControllerChannel:
+      type: object
+      description: >
+        One physical terminal the controller reports as part of its channel inventory, so the
+        UI can offer only real terminals (filtered by the modes they support) and validate that a
+        replacement controller has the terminals a device setup needs.
+      required:
+        - terminal
+        - supportedModes
+      properties:
+        terminal:
+          type: string
+          description: Stable terminal id (e.g. relay-12, ssr)
+        supportedModes:
+          type: array
+          description: >
+            Driven control modes this terminal can physically do — a subset of ON_OFF,
+            TIME_PROPORTIONAL, MODULATING. A device bound to this terminal must pick a controlMode
+            from this list. MANUAL is a device-level choice (the device is unbound from any
+            terminal) and is never listed here.
+          items:
+            $ref: '#/components/schemas/ControlMode'
+        direction:
+          $ref: '#/components/schemas/ChannelDirection'
+        rating:
+          type: string
+          description: Advisory current/voltage rating from the board descriptor (e.g. 16A), if any
 
     Controller:
       type: object
@@ -2841,6 +2923,12 @@ components:
           description: When the controller last synced
         status:
           $ref: '#/components/schemas/ControllerStatus'
+        channels:
+          type: array
+          readOnly: true
+          description: The controller's last reported terminal inventory
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
 
     Error:
       type: object
