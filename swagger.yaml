@@ -2599,13 +2599,15 @@ components:
     ControlMode:
       type: string
       description: >
-        How a switching output is driven. SSR runs time-proportional duty (solid-state, can
-        switch fast); CONTACTOR runs plain on/off (electromechanical — must not be fast-cycled).
-        Editable per device where its bound controller terminal is proportional-capable;
-        otherwise CONTACTOR. The controller clamps this to the terminal's capability.
+        How a controllable output is driven. ON_OFF is plain on/off switching (e.g. a
+        contactor, relay or solenoid valve); PROPORTIONAL is time-proportional duty (e.g. an
+        SSR-driven heating element). Editable per device; the controller clamps it to the bound
+        terminal's capability (PROPORTIONAL requires a proportional-capable terminal, ON_OFF
+        works anywhere). More modes (e.g. MANUAL for hand-operated valves) may be added later —
+        additive, so this enum is named by control behaviour rather than switching hardware.
       enum:
-        - SSR
-        - CONTACTOR
+        - ON_OFF
+        - PROPORTIONAL
 
     DeviceSetupScenario:
       type: object
@@ -2854,9 +2856,9 @@ components:
     ChannelCapability:
       type: string
       description: >
-        What control a board terminal supports. BINARY = on/off only (contactor-grade);
-        PROPORTIONAL = can additionally run time-proportional duty (SSR-grade). A device's
-        controlMode must not exceed its terminal's capability.
+        What control a board terminal supports. BINARY = on/off only (contactor-grade, accepts
+        ON_OFF); PROPORTIONAL = can additionally run time-proportional duty (SSR-grade, accepts
+        ON_OFF or PROPORTIONAL). A device's controlMode must not exceed its terminal's capability.
       enum:
         - BINARY
         - PROPORTIONAL
