@@ -1348,6 +1348,102 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/temperatureHistory:
+    get:
+      operationId: listSessionTemperatureHistory
+      summary: List session temperature history
+      description: >
+        Lists the full persisted thermometer-reading time series for a session, ordered by time.
+        Unlike listSessionTemperatures (which returns only the latest reading per thermometer),
+        this returns every stored sample so a client can chart actual temperatures over the brew.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: thermometerDeviceId
+          required: false
+          in: query
+          description: filter to a single thermometer device
+          schema:
+            type: string
+            format: uuid
+        - name: since
+          required: false
+          in: query
+          description: only return samples at or after this time
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: session temperature history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SessionTemperatureSample"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/sessions/{sessionId}/eventLog:
+    get:
+      operationId: listSessionEvents
+      summary: List session brew events
+      description: >
+        Lists persisted brew events for a session in chronological order — target-temperature
+        changes, scenario activations, manual overrides and recipe-step transitions — recorded
+        for later analysis (e.g. charting actual vs. target temperatures). This is the durable
+        event log, distinct from the transient streamSessionEvents SSE change-notifications.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          required: false
+          in: query
+          description: filter to a single event type
+          schema:
+            $ref: "#/components/schemas/BrewEventType"
+        - name: since
+          required: false
+          in: query
+          description: only return events at or after this time
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: session brew events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrewEvent"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/events:
     get:
       operationId: streamSessionEvents
@@ -2167,6 +2263,119 @@ components:
           description: Which parts of the session changed.
           items:
             $ref: '#/components/schemas/SessionChange'
+
+    SessionTemperatureSample:
+      type: object
+      description: A single persisted thermometer reading in a session's temperature history.
+      required:
+        - thermometerDeviceId
+        - time
+        - temperature
+      properties:
+        thermometerDeviceId:
+          type: string
+          format: uuid
+          readOnly: true
+        time:
+          type: string
+          format: date-time
+          description: Time the reading was recorded.
+          readOnly: true
+        temperature:
+          type: number
+          format: double
+          description: Reading in degrees Celsius.
+          readOnly: true
+
+    BrewEventType:
+      type: string
+      description: |
+        Kind of brew event. The set is expected to grow; clients should tolerate unknown values.
+        - SCENARIO_ACTIVATED / SCENARIO_DEACTIVATED: a scenario turned on/off (see scenario* fields).
+        - TARGET_TEMPERATURE_CHANGED: a resolved target temperature changed (see targetType + value fields).
+        - MANUAL_TEMPERATURE_SET: the brewer set or cleared a manual temperature override.
+        - RECIPE_STEP_ADVANCED: the session moved to a new recipe step (see recipeStep fields).
+      enum:
+        - SCENARIO_ACTIVATED
+        - SCENARIO_DEACTIVATED
+        - TARGET_TEMPERATURE_CHANGED
+        - MANUAL_TEMPERATURE_SET
+        - RECIPE_STEP_ADVANCED
+
+    BrewEventTargetType:
+      type: string
+      description: Which temperature target a TARGET_TEMPERATURE_CHANGED / MANUAL_TEMPERATURE_SET event refers to.
+      enum:
+        - MASH
+        - HOT_LIQUID
+        - BOIL
+        - AMBIENT
+
+    BrewEvent:
+      type: object
+      description: |
+        A persisted event recorded during a brew, for later analysis. Generic envelope with typed
+        fields; which fields are populated depends on `type`. Distinct from the transient SSE SessionEvent.
+      required:
+        - id
+        - sessionId
+        - time
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sessionId:
+          type: string
+          format: uuid
+          readOnly: true
+        time:
+          type: string
+          format: date-time
+          description: When the event occurred.
+          readOnly: true
+        type:
+          $ref: '#/components/schemas/BrewEventType'
+        targetType:
+          $ref: '#/components/schemas/BrewEventTargetType'
+        previousValue:
+          type: number
+          format: double
+          description: Previous numeric value (e.g. previous target/manual temperature in °C), when applicable.
+          readOnly: true
+        value:
+          type: number
+          format: double
+          description: New numeric value (e.g. new target/manual temperature in °C), when applicable.
+          readOnly: true
+        previousText:
+          type: string
+          description: Previous non-numeric value (e.g. previous boil tank status), when applicable.
+          readOnly: true
+        text:
+          type: string
+          description: New non-numeric value (e.g. new boil tank status), when applicable.
+          readOnly: true
+        scenarioId:
+          type: string
+          format: uuid
+          description: Scenario this event concerns, for scenario events.
+          readOnly: true
+        scenarioType:
+          $ref: '#/components/schemas/DeviceSetupScenarioType'
+        scenarioMode:
+          $ref: '#/components/schemas/SessionActiveScenarioMode'
+        recipeStepId:
+          type: string
+          format: uuid
+          description: New recipe step, for RECIPE_STEP_ADVANCED.
+          readOnly: true
+        previousRecipeStepId:
+          type: string
+          format: uuid
+          description: Previous recipe step, for RECIPE_STEP_ADVANCED.
+          readOnly: true
 
     SessionRecipeStep:
       type: object
