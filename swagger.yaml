@@ -1,4 +1,4 @@
-openapi: 3.0.0
+openapi: 3.1.0
 info:
   version: 1.0.0
   title: Laitto HERMS API
@@ -2765,8 +2765,7 @@ components:
         controllerId:
           type: string
         type:
-          allOf:
-            - $ref: '#/components/schemas/DeviceSetupType'
+          $ref: '#/components/schemas/DeviceSetupType'
           description: |
             Classifies the setup (HERMS, RIMS, fermentation chamber, …). Drives the default
             per-sensor-type prediction settings applied when the setup is created. Optional —
@@ -2796,8 +2795,7 @@ components:
         - horizonsSeconds
       properties:
         sensorType:
-          allOf:
-            - $ref: '#/components/schemas/DeviceSetupDeviceType'
+          $ref: '#/components/schemas/DeviceSetupDeviceType'
           description: |
             The thermometer type this setting applies to. Must be one of the `*_THERMOMETER`
             values of DeviceSetupDeviceType; other device types are not predictable.
@@ -2820,8 +2818,7 @@ components:
             format: int32
             minimum: 1
         smoothing:
-          allOf:
-            - $ref: '#/components/schemas/PredictionSmoothing'
+          $ref: '#/components/schemas/PredictionSmoothing'
           description: |
             Optional pre-filter applied to readings before the trend is fitted. Omit for no
             smoothing (the default; current sensor noise is negligible).
