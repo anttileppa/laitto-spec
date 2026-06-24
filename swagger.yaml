@@ -2167,6 +2167,70 @@ components:
             Manually entered ambient temperature (°C). When set it overrides the ambient
             thermometer (used as the grain temperature for strike calculations). Omit to use the
             sensor, which itself falls back to a 20 °C default.
+        mashPh:
+          type: number
+          format: double
+          description: Measured mash pH (brew-day reading). Omit when not measured.
+        preBoilGravity:
+          type: number
+          format: double
+          description: >-
+            Measured pre-boil gravity as specific gravity (e.g. 1.045). With preBoilVolume it
+            yields mashEfficiency. Omit when not measured.
+        preBoilVolume:
+          type: number
+          format: double
+          description: Measured pre-boil (into-kettle) volume in litres. Omit when not measured.
+        originalGravity:
+          type: number
+          format: double
+          description: >-
+            Measured original gravity (OG) as specific gravity (e.g. 1.052), the headline
+            brew-day number. With volumeIntoFermenter it yields brewhouseEfficiency. Omit when
+            not measured.
+        postBoilVolume:
+          type: number
+          format: double
+          description: Measured post-boil volume in litres. Omit when not measured.
+        volumeIntoFermenter:
+          type: number
+          format: double
+          description: Measured volume transferred into the fermenter, in litres. Omit when not measured.
+        mashEfficiency:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Computed mash efficiency (%), measured into the kettle:
+            `GP(preBoilGravity, preBoilVolume) / maxGP × 100`, where
+            `GP(g,v) = (g − 1) × 1000 × v` and
+            `maxGP = GP(recipe.targetOriginalGravity, recipe.batchSize) / (recipe.targetMashEfficiency / 100)`.
+            Omitted when preBoilGravity, preBoilVolume or the recipe targets are missing.
+        brewhouseEfficiency:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Computed brewhouse efficiency (%), measured into the fermenter:
+            `GP(originalGravity, volumeIntoFermenter) / maxGP × 100` (same GP/maxGP as
+            mashEfficiency). Lower than mashEfficiency by the kettle/trub losses. Omitted when
+            originalGravity, volumeIntoFermenter or the recipe targets are missing.
+        measuredEvaporationRate:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Computed boil-off rate in litres per hour: `(preBoilVolume − postBoilVolume) /
+            boilTimeHours`, where the boil time comes from the recipe's boil stage. Calibrates the
+            device setup's evaporationRate. Omitted when either volume or the boil time is missing.
+        measuredKettleLoss:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Computed wort left behind in the kettle, in litres: `postBoilVolume −
+            volumeIntoFermenter`. Calibrates the device setup's kettleLossVolume. Omitted when
+            either volume is missing.
 
     SessionRecipe:
       type: object
@@ -2633,6 +2697,48 @@ components:
           type: number
           format: double
           description: Mash (strike) water volume in litres. Used to compute strike (pre-heat) temperatures.
+        targetOriginalGravity:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Target original gravity (OG) as specific gravity. Populated from the Brewfather import;
+            used as the brew-day OG target and in the efficiency calculation.
+        targetFinalGravity:
+          type: number
+          format: double
+          readOnly: true
+          description: Target final gravity (FG) as specific gravity. Populated from the Brewfather import.
+        targetAbv:
+          type: number
+          format: double
+          readOnly: true
+          description: Target alcohol by volume (%). Populated from the Brewfather import.
+        targetIbu:
+          type: number
+          format: double
+          readOnly: true
+          description: Target bitterness (IBU). Populated from the Brewfather import.
+        targetColor:
+          type: number
+          format: double
+          readOnly: true
+          description: Target colour (EBC). Populated from the Brewfather import.
+        batchSize:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Target batch (into-fermenter) volume in litres. Populated from the Brewfather import;
+            used with targetOriginalGravity and targetMashEfficiency in the efficiency calculation.
+        targetMashEfficiency:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Target mash efficiency (%) the recipe was formulated for (Brewfather's recipe
+            efficiency). Populated from the Brewfather import; the baseline the grain bill is sized
+            to and the divisor in the efficiency calculation.
         stages:
           type: array
           description: >-
@@ -2782,6 +2888,26 @@ components:
             for the resulting read-side data.
           items:
             $ref: '#/components/schemas/DeviceSetupPredictionSetting'
+        expectedMashEfficiency:
+          type: number
+          format: double
+          description: >-
+            The rig's typical mash efficiency (%). Baseline a session's measured mashEfficiency is
+            compared against, and the default when scaling a recipe. Brewer-entered; omit when
+            unknown.
+        evaporationRate:
+          type: number
+          format: double
+          description: >-
+            The rig's typical boil-off at a normal rolling boil, in litres per hour. Baseline a
+            session's measuredEvaporationRate is compared against. Brewer-entered; omit when unknown.
+        kettleLossVolume:
+          type: number
+          format: double
+          description: >-
+            The rig's typical wort left behind in the kettle (trub/dead space), in litres — the
+            mash→brewhouse gap as a volume. Baseline a session's measuredKettleLoss is compared
+            against. Brewer-entered; omit when unknown.
 
     DeviceSetupPredictionSetting:
       type: object
