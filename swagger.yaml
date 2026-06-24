@@ -2635,14 +2635,13 @@ components:
           description: >-
             Target temperature in °C for a heating/cooling control (e.g. the mash or hot-liquid-tank
             target). Omitted for controls without a temperature target (circulation, pumps, boil).
-        strikeFromMashTemperature:
-          type: integer
-          format: int32
+        calculateStrike:
+          type: boolean
           description: >-
-            Only meaningful on a HEAT_HOT_LIQUID_TANK control: when set, the hot-liquid-tank target is
-            computed as a strike (pre-heat) temperature from the recipe's grain mass, mash water volume
-            and grain temperature and this dough-in mash temperature, falling back to targetTemperature
-            when those inputs are missing.
+            Only meaningful on a HEAT_HOT_LIQUID_TANK control: when true, the hot-liquid-tank target is
+            computed as a strike (pre-heat) temperature from the recipe's grain mass, mash water volume,
+            the live grain (ambient) temperature and the recipe's dough-in mash temperature (the first
+            mash step's target), falling back to targetTemperature when those inputs are missing.
 
     RecipeStageStep:
       type: object
