@@ -2487,7 +2487,7 @@ components:
           description: Scenario this event concerns, for scenario events.
           readOnly: true
         scenarioType:
-          $ref: '#/components/schemas/DeviceSetupScenarioType'
+          $ref: '#/components/schemas/ScenarioType'
         scenarioMode:
           $ref: '#/components/schemas/SessionActiveScenarioMode'
         recipeStepId:
@@ -2617,15 +2617,32 @@ components:
           items:
             $ref: '#/components/schemas/RecipeStageStep'
 
-    RecipeStageStepBoilTankStatus:
-      type: string
+    StepControl:
+      type: object
       description: >-
-        What the boil kettle should be doing during a step. Drives the boil-kettle heat/boil
-        scenarios.
-      enum:
-        - NONE
-        - HEAT
-        - BOIL
+        One control intent active during a recipe step: a device-setup scenario that should run,
+        with an optional target. The session resolves `scenarioType` to the setup's matching
+        scenario; a step that activates no control is passive. Replaces the previous fixed mash/boil
+        step fields (mash/HLT targets, mash-circulation flag, boil-tank status, strike flag).
+      required:
+        - scenarioType
+      properties:
+        scenarioType:
+          $ref: '#/components/schemas/ScenarioType'
+        targetTemperature:
+          type: integer
+          format: int32
+          description: >-
+            Target temperature in °C for a heating/cooling control (e.g. the mash or hot-liquid-tank
+            target). Omitted for controls without a temperature target (circulation, pumps, boil).
+        strikeFromMashTemperature:
+          type: integer
+          format: int32
+          description: >-
+            Only meaningful on a HEAT_HOT_LIQUID_TANK control: when set, the hot-liquid-tank target is
+            computed as a strike (pre-heat) temperature from the recipe's grain mass, mash water volume
+            and grain temperature and this dough-in mash temperature, falling back to targetTemperature
+            when those inputs are missing.
 
     RecipeStageStep:
       type: object
@@ -2651,24 +2668,15 @@ components:
           type: integer
           format: int32
           description: Order of the step within its stage.
-        targetMashTemperature:
-          type: integer
-          format: int32
-        targetHotLiquidTemperature:
-          type: integer
-          format: int32
-        circulateMashTank:
-          type: boolean
-          description: Whether the mash tank should circulate during this step. Drives the mash circulation scenario.
-        boilTankStatus:
-          $ref: '#/components/schemas/RecipeStageStepBoilTankStatus'
-        calculateStrikeTemperature:
-          type: boolean
+        controls:
+          type: array
           description: >-
-            When true, the hot liquid tank target for this step is computed as a strike (pre-heat)
-            temperature from the recipe's grain mass, mash water volume and grain temperature and
-            this step's targetMashTemperature, instead of using a fixed targetHotLiquidTemperature.
-            Falls back to targetHotLiquidTemperature when the inputs are missing.
+            The control intents active during this step — which device-setup scenarios run and at what
+            target. Empty for a passive step. Replaces the former targetMashTemperature,
+            targetHotLiquidTemperature, circulateMashTank, boilTankStatus and calculateStrikeTemperature
+            fields.
+          items:
+            $ref: '#/components/schemas/StepControl'
 
     Recipe:
       type: object
@@ -3121,7 +3129,7 @@ components:
           format: uuid
           readOnly: true
         type:
-          $ref: '#/components/schemas/DeviceSetupScenarioType'
+          $ref: '#/components/schemas/ScenarioType'
 
     DeviceSetupScenarioDevice:
       type: object
@@ -3141,8 +3149,13 @@ components:
           minimum: 0
           maximum: 100
 
-    DeviceSetupScenarioType:
+    ScenarioType:
       type: string
+      description: >-
+        A control role in the brewing process (heat the mash, circulate the mash tank, cool, pump
+        between vessels, …). A shared vocabulary: a recipe step's controls declare which roles they
+        require (intent), and a device setup's scenarios declare how this rig implements each role
+        (implementation); they are matched by this type.
       enum:
         - FILL_HOT_LIQUID_TANK
         - FILL_BOIL_KETTLE
