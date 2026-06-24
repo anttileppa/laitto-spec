@@ -2487,7 +2487,7 @@ components:
           description: Scenario this event concerns, for scenario events.
           readOnly: true
         scenarioType:
-          $ref: '#/components/schemas/DeviceSetupScenarioType'
+          $ref: '#/components/schemas/ScenarioType'
         scenarioMode:
           $ref: '#/components/schemas/SessionActiveScenarioMode'
         recipeStepId:
@@ -2628,7 +2628,7 @@ components:
         - scenarioType
       properties:
         scenarioType:
-          $ref: '#/components/schemas/DeviceSetupScenarioType'
+          $ref: '#/components/schemas/ScenarioType'
         targetTemperature:
           type: integer
           format: int32
@@ -3129,7 +3129,7 @@ components:
           format: uuid
           readOnly: true
         type:
-          $ref: '#/components/schemas/DeviceSetupScenarioType'
+          $ref: '#/components/schemas/ScenarioType'
 
     DeviceSetupScenarioDevice:
       type: object
@@ -3149,8 +3149,13 @@ components:
           minimum: 0
           maximum: 100
 
-    DeviceSetupScenarioType:
+    ScenarioType:
       type: string
+      description: >-
+        A control role in the brewing process (heat the mash, circulate the mash tank, cool, pump
+        between vessels, …). A shared vocabulary: a recipe step's controls declare which roles they
+        require (intent), and a device setup's scenarios declare how this rig implements each role
+        (implementation); they are matched by this type.
       enum:
         - FILL_HOT_LIQUID_TANK
         - FILL_BOIL_KETTLE
