@@ -2573,6 +2573,26 @@ components:
           type: integer
           format: int32
           readOnly: true
+        stageOrderIndex:
+          description: |
+            Position of this step's stage in the recipe's process (ascending), derived from the
+            recipe. Lets the follower group steps into stages and order them — including a type that
+            repeats (e.g. two TRANSFER stages, to the kettle and to the fermenter). Immutable during
+            the session.
+          type: integer
+          format: int32
+          readOnly: true
+        completion:
+          $ref: '#/components/schemas/StepCompletion'
+          description: |
+            How this step completes (time / temperature-target / manual), derived from the recipe.
+            Lets the follower show the right affordance — countdown, "until <sensor> <target>°", or a
+            confirm button. Null means TIME. Immutable during the session.
+        measurement:
+          $ref: '#/components/schemas/StepMeasurement'
+          description: |
+            When set, this step records a brew-day reading (the value is written to the matching
+            Session brew-day field). Derived from the recipe; immutable during the session.
         startedAt:
           description: |
             The time when the step was started. Setting this value will mark the step as started.
