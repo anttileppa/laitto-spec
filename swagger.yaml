@@ -2175,8 +2175,16 @@ components:
           type: number
           format: double
           description: >-
-            Measured pre-boil gravity as specific gravity (e.g. 1.045). With preBoilVolume it
-            yields mashEfficiency. Omit when not measured.
+            Measured pre-boil gravity as specific gravity (e.g. 1.045), temperature-corrected to a
+            20 °C hydrometer calibration. With preBoilVolume it yields mashEfficiency. Omit when not
+            measured.
+        preBoilGravitySampleTemperature:
+          type: number
+          format: double
+          description: >-
+            Sample temperature (°C) the pre-boil gravity was read at, kept so the correction can be
+            recomputed and a too-hot reading (correction unreliable above ~40 °C) flagged. Omit when
+            not measured.
         preBoilVolume:
           type: number
           format: double
@@ -2185,9 +2193,15 @@ components:
           type: number
           format: double
           description: >-
-            Measured original gravity (OG) as specific gravity (e.g. 1.052), the headline
-            brew-day number. With volumeIntoFermenter it yields brewhouseEfficiency. Omit when
-            not measured.
+            Measured original gravity (OG) as specific gravity (e.g. 1.052), temperature-corrected to
+            a 20 °C hydrometer calibration — the headline brew-day number. With volumeIntoFermenter it
+            yields brewhouseEfficiency. Omit when not measured.
+        originalGravitySampleTemperature:
+          type: number
+          format: double
+          description: >-
+            Sample temperature (°C) the original gravity was read at, kept so the correction can be
+            recomputed and a too-hot reading flagged. Omit when not measured.
         postBoilVolume:
           type: number
           format: double
@@ -2594,12 +2608,22 @@ components:
 
     RecipeStageType:
       type: string
+      description: >-
+        Kind of brew-process phase. MASH/BOIL/HOPSTAND/RAMP/EVENT are the originals; PREPARE,
+        STRIKE, TRANSFER, WHIRLPOOL and CHILL extend the model to the whole brew day (a recipe may
+        have two TRANSFER stages — to the kettle and to the fermenter). FERMENTATION and PACKAGING
+        are reserved for later stories. Clients should tolerate unknown values.
       enum:
         - MASH
         - EVENT
         - BOIL
         - HOPSTAND
         - RAMP
+        - PREPARE
+        - STRIKE
+        - TRANSFER
+        - WHIRLPOOL
+        - CHILL
 
     RecipeStage:
       type: object
@@ -2676,6 +2700,93 @@ components:
             fields.
           items:
             $ref: '#/components/schemas/StepControl'
+        completion:
+          $ref: '#/components/schemas/StepCompletion'
+        measurement:
+          $ref: '#/components/schemas/StepMeasurement'
+
+    StepCompletionKind:
+      type: string
+      description: |
+        How a step decides it is complete.
+        - TIME: after `duration` elapses (the default; the original behaviour).
+        - TEMPERATURE_TARGET: when `sensorType` crosses `targetTemperature` in `direction`. The
+          step's `duration` is then only an estimate for timeline layout — it must NOT advance the
+          session on the clock; the session holds and gates on the reading.
+        - MANUAL: when the brewer confirms it (e.g. a transfer); `duration` is likewise an estimate.
+      enum:
+        - TIME
+        - TEMPERATURE_TARGET
+        - MANUAL
+
+    TemperatureDirection:
+      type: string
+      description: Which way a TEMPERATURE_TARGET completion is crossed — heating up vs. cooling down.
+      enum:
+        - AT_OR_ABOVE
+        - AT_OR_BELOW
+
+    StepCompletion:
+      type: object
+      description: >-
+        When a step is considered complete. Omitted on a step means TIME (so existing recipes are
+        unchanged). For TEMPERATURE_TARGET and MANUAL the step's `duration` is an estimate only, not a
+        countdown.
+      required:
+        - kind
+      properties:
+        kind:
+          $ref: '#/components/schemas/StepCompletionKind'
+        sensorType:
+          $ref: '#/components/schemas/DeviceSetupDeviceType'
+          description: >-
+            For TEMPERATURE_TARGET: the thermometer (a *_THERMOMETER DeviceSetupDeviceType) whose
+            reading is watched, resolved to the setup's device of that type at session time
+            (e.g. BOIL_KETTLE_THERMOMETER for chill, HOT_LIQUID_TANK_THERMOMETER for strike).
+        targetTemperature:
+          type: integer
+          format: int32
+          description: >-
+            For TEMPERATURE_TARGET, the threshold in °C the sensor must reach.
+        direction:
+          $ref: '#/components/schemas/TemperatureDirection'
+
+    MeasurementReading:
+      type: string
+      description: >-
+        Which brew-day reading a measurement step records. Each maps to a Session brew-day field
+        (see #25): MASH_PH → mashPh, PRE_BOIL_GRAVITY → preBoilGravity, ORIGINAL_GRAVITY →
+        originalGravity, VOLUME_INTO_FERMENTER → volumeIntoFermenter. The gravity readings are
+        temperature-corrected and store a sample temperature alongside the value.
+      enum:
+        - MASH_PH
+        - PRE_BOIL_GRAVITY
+        - ORIGINAL_GRAVITY
+        - VOLUME_INTO_FERMENTER
+
+    StepMeasurement:
+      type: object
+      description: >-
+        Marks a step as a measurement the brewer records during the brew. The recorded value is
+        written to the Session brew-day field identified by `reading`; gravity readings are
+        temperature-corrected (a sample temperature is captured and stored).
+      required:
+        - reading
+      properties:
+        reading:
+          $ref: '#/components/schemas/MeasurementReading'
+        target:
+          type: number
+          format: double
+          description: Expected value, for at-a-glance feedback (e.g. target OG 1.052, mash pH 5.4).
+        rangeMin:
+          type: number
+          format: double
+          description: Lower bound of the acceptable range (mainly for pH), for feedback.
+        rangeMax:
+          type: number
+          format: double
+          description: Upper bound of the acceptable range (mainly for pH), for feedback.
 
     Recipe:
       type: object
