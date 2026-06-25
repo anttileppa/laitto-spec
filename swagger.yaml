@@ -1507,9 +1507,19 @@ paths:
     get:
       operationId: listRecipes
       summary: List recipes
-      description: Lists recipes
+      description: >-
+        Lists recipes. By default returns only the latest version of each recipe family (the library
+        view). Pass baseRecipeId to list the full version history of a single family.
       tags:
         - Recipes
+      parameters:
+        - name: baseRecipeId
+          required: false
+          in: query
+          description: When set, lists every version of this recipe family instead of latest-per-family.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: recipes
@@ -1605,6 +1615,70 @@ paths:
       responses:
         "204":
           description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipes/{recipeId}/duplicate:
+    post:
+      operationId: duplicateRecipe
+      summary: Duplicate a recipe.
+      description: >-
+        Copies the recipe (its stages, steps and controls) into a new, editable version in the same
+        recipe family. The escape hatch for changing a recipe that is read-only because it has been
+        brewed. Returns the new version.
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id to duplicate
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The new recipe version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipes/{recipeId}/resync:
+    post:
+      operationId: resyncRecipe
+      summary: Resync a recipe from its source.
+      description: >-
+        Pulls the latest definition from this recipe's source (Brewfather) and creates a new version
+        in the same recipe family, leaving existing versions untouched. Only valid for recipes with a
+        BREWFATHER source. Returns the new version.
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id to resync
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The new recipe version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
         default:
           description: Error
           content:
@@ -2819,6 +2893,29 @@ components:
           type: string
           format: uuid
           readOnly: true
+        baseRecipeId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: >-
+            The recipe family this version belongs to. Every version of a recipe shares one
+            baseRecipeId; the first version self-references (baseRecipeId == id). Duplicating a
+            recipe, or resyncing it from Brewfather, creates a new version in the same family. Lets
+            the library group versions and show only the latest per family.
+        version:
+          type: integer
+          format: int32
+          readOnly: true
+          description: >-
+            Monotonic version number within the recipe family (starts at 1). The highest version in a
+            family is the current one shown in the library.
+        readOnly:
+          type: boolean
+          readOnly: true
+          description: >-
+            True when the recipe is frozen because a session that uses it has started (status other
+            than DRAFT). A read-only recipe cannot be edited or deleted — duplicate it (or resync it
+            from Brewfather) to get an editable new version. Derived from the recipe's sessions.
         name:
           type: string
           description: Recipe name
