@@ -2573,6 +2573,15 @@ components:
           type: integer
           format: int32
           readOnly: true
+        stageOrderIndex:
+          description: |
+            Position of this step's stage in the recipe's process (ascending), derived from the
+            recipe. Lets the follower group steps into stages and order them — including a type that
+            repeats (e.g. two TRANSFER stages, to the kettle and to the fermenter). Immutable during
+            the session.
+          type: integer
+          format: int32
+          readOnly: true
         completion:
           $ref: '#/components/schemas/StepCompletion'
           description: |
