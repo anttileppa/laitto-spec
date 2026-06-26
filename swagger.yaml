@@ -2962,18 +2962,17 @@ components:
         batchSize:
           type: number
           format: double
-          readOnly: true
           description: >-
-            Target batch (into-fermenter) volume in litres. Populated from the Brewfather import;
-            used with targetOriginalGravity and targetMashEfficiency in the efficiency calculation.
+            Target batch (into-fermenter) volume in litres. For LAITTO recipes this is a brewer-set
+            input to the stat computation; for BREWFATHER recipes it is populated from the import.
+            Used with targetOriginalGravity and targetMashEfficiency in the efficiency calculation.
         targetMashEfficiency:
           type: number
           format: double
-          readOnly: true
           description: >-
-            Target mash efficiency (%) the recipe was formulated for (Brewfather's recipe
-            efficiency). Populated from the Brewfather import; the baseline the grain bill is sized
-            to and the divisor in the efficiency calculation.
+            Mash efficiency (%) the recipe is formulated for. For LAITTO recipes this is a brewer-set
+            input to the stat computation (it scales the grain bill's contribution to OG); for
+            BREWFATHER recipes it is populated from the import.
         stages:
           type: array
           description: >-
@@ -2981,6 +2980,212 @@ components:
             stages and steps (e.g. editing the mash schedule or boil additions).
           items:
             $ref: '#/components/schemas/RecipeStage'
+        fermentables:
+          type: array
+          description: >-
+            The fermentable bill (grains, sugars, extracts). Returned on read; accepted on create/
+            update to replace the recipe's fermentables. Drives the OG/colour computation for LAITTO
+            recipes.
+          items:
+            $ref: '#/components/schemas/RecipeFermentable'
+        hops:
+          type: array
+          description: >-
+            The hop bill. Returned on read; accepted on create/update to replace the recipe's hops.
+            Drives the IBU computation for LAITTO recipes.
+          items:
+            $ref: '#/components/schemas/RecipeHop'
+        yeasts:
+          type: array
+          description: >-
+            The yeast(s). Returned on read; accepted on create/update to replace the recipe's yeasts.
+            The attenuation drives the FG/ABV computation for LAITTO recipes.
+          items:
+            $ref: '#/components/schemas/RecipeYeast'
+        miscs:
+          type: array
+          description: >-
+            Miscellaneous additions (finings, spices, water agents, …). Returned on read; accepted on
+            create/update to replace the recipe's misc items. Informational (not part of the stat
+            computation).
+          items:
+            $ref: '#/components/schemas/RecipeMisc'
+
+    RecipeFermentable:
+      type: object
+      required:
+        - name
+      description: A fermentable in the recipe bill (grain, sugar or extract).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Fermentable name (e.g. "Pale Ale Malt").
+        type:
+          $ref: '#/components/schemas/FermentableType'
+        amount:
+          type: number
+          format: double
+          description: Amount in kilograms.
+        color:
+          type: number
+          format: double
+          description: Colour contribution in EBC.
+        potential:
+          type: number
+          format: double
+          description: >-
+            Extract potential as the specific gravity of the fine-grind dry yield (e.g. 1.037).
+            Grains are scaled by the mash efficiency; sugars/extracts contribute at full potential.
+
+    RecipeHop:
+      type: object
+      required:
+        - name
+      description: A hop addition in the recipe bill.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Hop name (e.g. "Cascade").
+        amount:
+          type: number
+          format: double
+          description: Amount in grams.
+        alpha:
+          type: number
+          format: double
+          description: Alpha-acid content (%).
+        use:
+          $ref: '#/components/schemas/HopUse'
+        time:
+          type: integer
+          format: int32
+          description: >-
+            Time in minutes — boil/first-wort time before flame-out, whirlpool stand time, or dry-hop
+            days (interpreted by use).
+        form:
+          $ref: '#/components/schemas/HopForm'
+
+    RecipeYeast:
+      type: object
+      required:
+        - name
+      description: A yeast in the recipe.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Yeast name (e.g. "SafAle US-05").
+        lab:
+          type: string
+          description: Producer / lab (e.g. "Fermentis").
+        attenuation:
+          type: number
+          format: double
+          description: Apparent attenuation (%). Drives the FG/ABV computation.
+        form:
+          $ref: '#/components/schemas/YeastForm'
+        amount:
+          type: number
+          format: double
+          description: Amount (packets, grams or litres depending on form/unit).
+        unit:
+          type: string
+          description: Unit for amount (e.g. "pkg", "g", "ml").
+
+    RecipeMisc:
+      type: object
+      required:
+        - name
+      description: A miscellaneous addition (fining, spice, water agent, …).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Misc item name (e.g. "Whirlfloc").
+        type:
+          $ref: '#/components/schemas/MiscType'
+        use:
+          $ref: '#/components/schemas/MiscUse'
+        amount:
+          type: number
+          format: double
+          description: Amount in the given unit.
+        unit:
+          type: string
+          description: Unit for amount (e.g. "g", "ml", "tsp").
+        time:
+          type: integer
+          format: int32
+          description: Time in minutes (when applicable, e.g. a boil/whirlpool addition).
+
+    FermentableType:
+      type: string
+      enum:
+        - GRAIN
+        - SUGAR
+        - EXTRACT
+        - DRY_EXTRACT
+        - ADJUNCT
+
+    HopUse:
+      type: string
+      enum:
+        - BOIL
+        - AROMA
+        - WHIRLPOOL
+        - DRY_HOP
+        - FIRST_WORT
+        - MASH
+
+    HopForm:
+      type: string
+      enum:
+        - PELLET
+        - LEAF
+        - EXTRACT
+
+    YeastForm:
+      type: string
+      enum:
+        - LIQUID
+        - DRY
+        - SLANT
+        - CULTURE
+
+    MiscType:
+      type: string
+      enum:
+        - FINING
+        - SPICE
+        - WATER_AGENT
+        - FLAVOR
+        - HERB
+        - OTHER
+
+    MiscUse:
+      type: string
+      enum:
+        - MASH
+        - BOIL
+        - PRIMARY
+        - SECONDARY
+        - BOTTLING
+        - SPARGE
+        - OTHER
 
     BrewfatherRecipe:
       type: object
@@ -3083,7 +3288,11 @@ components:
 
     RecipeSource:
       type: string
+      description: >-
+        Where a recipe originates. LAITTO recipes are authored natively in Laitto (a first-class
+        peer of imported recipes); BREWFATHER recipes are imported from Brewfather.
       enum:
+        - LAITTO
         - BREWFATHER
 
     ExternalSessionSource:
