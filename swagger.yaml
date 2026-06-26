@@ -1686,6 +1686,420 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/ingredients/fermentables:
+    get:
+      operationId: listCatalogueFermentables
+      summary: List catalogue fermentables
+      description: Fermentables from the common library and this brewery, optionally filtered by name.
+      tags: [Ingredients]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Case-insensitive name filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fermentables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogueFermentable"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createCatalogueFermentable
+      summary: Add a brewery fermentable
+      description: Adds a fermentable to this brewery's library (tier BREWERY).
+      tags: [Ingredients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueFermentable"
+      responses:
+        "200":
+          description: Created fermentable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueFermentable"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/ingredients/fermentables/{ingredientId}:
+    put:
+      operationId: updateCatalogueFermentable
+      summary: Update a brewery fermentable
+      description: Updates a brewery-tier fermentable. Common items are read-only (409).
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueFermentable"
+      responses:
+        "200":
+          description: Updated fermentable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueFermentable"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCatalogueFermentable
+      summary: Delete a brewery fermentable
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/ingredients/hops:
+    get:
+      operationId: listCatalogueHops
+      summary: List catalogue hops
+      description: Hops from the common library and this brewery, optionally filtered by name.
+      tags: [Ingredients]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Case-insensitive name filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hops
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogueHop"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createCatalogueHop
+      summary: Add a brewery hop
+      tags: [Ingredients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueHop"
+      responses:
+        "200":
+          description: Created hop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueHop"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/ingredients/hops/{ingredientId}:
+    put:
+      operationId: updateCatalogueHop
+      summary: Update a brewery hop
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueHop"
+      responses:
+        "200":
+          description: Updated hop
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueHop"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCatalogueHop
+      summary: Delete a brewery hop
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/ingredients/yeasts:
+    get:
+      operationId: listCatalogueYeasts
+      summary: List catalogue yeasts
+      description: Yeasts from the common library and this brewery, optionally filtered by name.
+      tags: [Ingredients]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Case-insensitive name filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Yeasts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogueYeast"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createCatalogueYeast
+      summary: Add a brewery yeast
+      tags: [Ingredients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueYeast"
+      responses:
+        "200":
+          description: Created yeast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueYeast"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/ingredients/yeasts/{ingredientId}:
+    put:
+      operationId: updateCatalogueYeast
+      summary: Update a brewery yeast
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueYeast"
+      responses:
+        "200":
+          description: Updated yeast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueYeast"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCatalogueYeast
+      summary: Delete a brewery yeast
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/ingredients/miscs:
+    get:
+      operationId: listCatalogueMiscs
+      summary: List catalogue miscs
+      description: Misc items from the common library and this brewery, optionally filtered by name.
+      tags: [Ingredients]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Case-insensitive name filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Misc items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogueMisc"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createCatalogueMisc
+      summary: Add a brewery misc
+      tags: [Ingredients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueMisc"
+      responses:
+        "200":
+          description: Created misc
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueMisc"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/ingredients/miscs/{ingredientId}:
+    put:
+      operationId: updateCatalogueMisc
+      summary: Update a brewery misc
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueMisc"
+      responses:
+        "200":
+          description: Updated misc
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueMisc"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCatalogueMisc
+      summary: Delete a brewery misc
+      tags: [Ingredients]
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/brewery:
     get:
       operationId: getCurrentBrewery
@@ -3021,6 +3435,13 @@ components:
           type: string
           format: uuid
           readOnly: true
+        catalogueItemId:
+          type: string
+          format: uuid
+          description: >-
+            Optional provenance link to the catalogue ingredient this row was filled from (resolved on
+            import, or picked in the editor). The row still snapshots its own values; the link is for
+            "jump to library" and traceability, not a live dependency.
         name:
           type: string
           description: Fermentable name (e.g. "Pale Ale Malt").
@@ -3051,6 +3472,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        catalogueItemId:
+          type: string
+          format: uuid
+          description: Optional provenance link to the catalogue ingredient this row was filled from.
         name:
           type: string
           description: Hop name (e.g. "Cascade").
@@ -3083,6 +3508,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        catalogueItemId:
+          type: string
+          format: uuid
+          description: Optional provenance link to the catalogue ingredient this row was filled from.
         name:
           type: string
           description: Yeast name (e.g. "SafAle US-05").
@@ -3113,6 +3542,10 @@ components:
           type: string
           format: uuid
           readOnly: true
+        catalogueItemId:
+          type: string
+          format: uuid
+          description: Optional provenance link to the catalogue ingredient this row was filled from.
         name:
           type: string
           description: Misc item name (e.g. "Whirlfloc").
@@ -3131,6 +3564,138 @@ components:
           type: integer
           format: int32
           description: Time in minutes (when applicable, e.g. a boil/whirlpool addition).
+
+    IngredientTier:
+      type: string
+      description: >-
+        Which library tier a catalogue ingredient belongs to. COMMON is the global, curated, read-only
+        reference (seeded from public sources); BREWERY is the editable per-brewery library (custom
+        items + recipe-import ingredients that didn't match common).
+      enum:
+        - COMMON
+        - BREWERY
+
+    CatalogueFermentable:
+      type: object
+      required:
+        - name
+      description: A reusable fermentable in the ingredient catalogue (reference data, not a bill row).
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tier:
+          allOf:
+            - $ref: '#/components/schemas/IngredientTier'
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+          description: Provenance of the data (e.g. "BeerJSON public dataset", "recipe import — <recipe>", "added by you").
+        name:
+          type: string
+          description: Fermentable name (e.g. "Pale Ale Malt").
+        type:
+          $ref: '#/components/schemas/FermentableType'
+        color:
+          type: number
+          format: double
+          description: Colour in EBC.
+        potential:
+          type: number
+          format: double
+          description: Extract potential as the fine-grind dry yield specific gravity (e.g. 1.037).
+
+    CatalogueHop:
+      type: object
+      required:
+        - name
+      description: A reusable hop in the ingredient catalogue.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tier:
+          allOf:
+            - $ref: '#/components/schemas/IngredientTier'
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+          description: Provenance of the data.
+        name:
+          type: string
+          description: Hop name (e.g. "Cascade").
+        alpha:
+          type: number
+          format: double
+          description: Typical alpha-acid content (%).
+        use:
+          $ref: '#/components/schemas/HopUse'
+        form:
+          $ref: '#/components/schemas/HopForm'
+        origin:
+          type: string
+          description: Origin / grower (e.g. "USA").
+
+    CatalogueYeast:
+      type: object
+      required:
+        - name
+      description: A reusable yeast in the ingredient catalogue.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tier:
+          allOf:
+            - $ref: '#/components/schemas/IngredientTier'
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+          description: Provenance of the data.
+        name:
+          type: string
+          description: Yeast name (e.g. "SafAle US-05").
+        lab:
+          type: string
+          description: Producer / lab (e.g. "Fermentis").
+        attenuation:
+          type: number
+          format: double
+          description: Typical apparent attenuation (%).
+        form:
+          $ref: '#/components/schemas/YeastForm'
+
+    CatalogueMisc:
+      type: object
+      required:
+        - name
+      description: A reusable miscellaneous item in the ingredient catalogue.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tier:
+          allOf:
+            - $ref: '#/components/schemas/IngredientTier'
+          readOnly: true
+        source:
+          type: string
+          readOnly: true
+          description: Provenance of the data.
+        name:
+          type: string
+          description: Misc item name (e.g. "Whirlfloc").
+        type:
+          $ref: '#/components/schemas/MiscType'
+        use:
+          $ref: '#/components/schemas/MiscUse'
 
     FermentableType:
       type: string
