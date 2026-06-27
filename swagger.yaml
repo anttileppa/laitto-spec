@@ -1686,6 +1686,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/recipeStyles:
+    get:
+      operationId: listRecipeStyles
+      summary: List recipe styles
+      description: >-
+        Lists the beer styles the recipe wizard can bootstrap from, with their typical vital-stat
+        ranges and sensible defaults. Drives the wizard's style picker, the target sliders' "typical"
+        bands and the conversational feedback. The underlying formulation templates are server
+        internal and not exposed.
+      tags:
+        - Recipes
+      responses:
+        "200":
+          description: Recipe styles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecipeStyle"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipeDrafts:
+    post:
+      operationId: createRecipeDraft
+      summary: Draft a recipe from style + targets.
+      description: >-
+        Runs the recipe wizard's formulator: scales the chosen style's template to the answered
+        targets (ABV, IBU, colour, body, batch, efficiency) and returns a draft LAITTO recipe — a
+        full, editable bill plus brew plan and computed stats. The draft is NOT persisted; the client
+        saves it with createRecipe (so the recipe gets its own family and freezes on use like any
+        other). Deterministic, with no LLM in the core.
+      tags:
+        - Recipes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeDraftRequest'
+        description: The wizard answers
+        required: true
+      responses:
+        "200":
+          description: An unsaved draft recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/ingredients/fermentables:
     get:
       operationId: listCatalogueFermentables
@@ -3859,6 +3919,106 @@ components:
       enum:
         - LAITTO
         - BREWFATHER
+
+    BodyTarget:
+      type: string
+      description: >-
+        The wizard's body/mouthfeel target. Maps to a mash temperature (LIGHT mashes drier, FULL
+        fuller) and informs the grist.
+      enum:
+        - LIGHT
+        - MEDIUM
+        - FULL
+
+    StatRange:
+      type: object
+      description: A typical low–high range for a style vital stat.
+      required:
+        - min
+        - max
+      properties:
+        min:
+          type: number
+          format: double
+        max:
+          type: number
+          format: double
+
+    RecipeStyle:
+      type: object
+      description: >-
+        A beer style the recipe wizard can bootstrap from: its typical vital-stat ranges and sensible
+        defaults. The vital-stat numbers are facts (compiled in-house); style descriptions/prose are
+        not included. The formulation template behind a style is server internal and not exposed.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: Stable style identifier (e.g. "ipa").
+        name:
+          type: string
+          description: Display name (e.g. "American IPA").
+        family:
+          type: string
+          description: Broad family for grouping (e.g. "Ale", "Lager", "Wheat").
+        abvRange:
+          $ref: '#/components/schemas/StatRange'
+        ibuRange:
+          $ref: '#/components/schemas/StatRange'
+        ebcRange:
+          $ref: '#/components/schemas/StatRange'
+        defaultAbv:
+          type: number
+          format: double
+          description: Sensible starting ABV (%) for the wizard sliders.
+        defaultIbu:
+          type: number
+          format: double
+          description: Sensible starting bitterness (IBU).
+        defaultEbc:
+          type: number
+          format: double
+          description: Sensible starting colour (EBC).
+        defaultBody:
+          $ref: '#/components/schemas/BodyTarget'
+
+    RecipeDraftRequest:
+      type: object
+      description: >-
+        The recipe wizard's answers. The formulator scales the chosen style's template to these
+        targets and returns an unsaved draft recipe.
+      required:
+        - styleId
+        - batchSize
+        - mashEfficiency
+      properties:
+        styleId:
+          type: string
+          description: The chosen style's id (from listRecipeStyles).
+        abv:
+          type: number
+          format: double
+          description: Target alcohol by volume (%). Defaults to the style's defaultAbv when omitted.
+        ibu:
+          type: number
+          format: double
+          description: Target bitterness (IBU). Defaults to the style's defaultIbu when omitted.
+        ebc:
+          type: number
+          format: double
+          description: Target colour (EBC). Defaults to the style's defaultEbc when omitted.
+        body:
+          $ref: '#/components/schemas/BodyTarget'
+        batchSize:
+          type: number
+          format: double
+          description: Target batch (into-fermenter) volume in litres.
+        mashEfficiency:
+          type: number
+          format: double
+          description: Mash efficiency (%) to formulate for.
 
     ExternalSessionSource:
       type: string
