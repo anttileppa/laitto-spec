@@ -1746,6 +1746,128 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/brewerySourceWaters:
+    get:
+      operationId: listBrewerySourceWaters
+      summary: List brewery source waters
+      description: The source-water profiles this brewery has on hand (one is the default).
+      tags: [Water]
+      responses:
+        "200":
+          description: Brewery source waters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrewerySourceWater"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createBrewerySourceWater
+      summary: Create a brewery source water
+      description: Adds a source-water profile to the brewery.
+      tags: [Water]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrewerySourceWater'
+        required: true
+      responses:
+        "200":
+          description: Created source water
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrewerySourceWater"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewerySourceWaters/{sourceWaterId}:
+    put:
+      operationId: updateBrewerySourceWater
+      summary: Update a brewery source water
+      tags: [Water]
+      parameters:
+        - name: sourceWaterId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrewerySourceWater'
+        required: true
+      responses:
+        "200":
+          description: Updated source water
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrewerySourceWater"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteBrewerySourceWater
+      summary: Delete a brewery source water
+      tags: [Water]
+      parameters:
+        - name: sourceWaterId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/waterTargets:
+    get:
+      operationId: listWaterTargets
+      summary: List water-profile presets
+      description: >-
+        Named target water-profile presets a recipe's targetWaterProfile can be seeded from. Reference
+        data, like recipe styles.
+      tags: [Water]
+      responses:
+        "200":
+          description: Water targets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterTarget"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/ingredients/fermentables:
     get:
       operationId: listCatalogueFermentables
@@ -2793,6 +2915,45 @@ components:
             Computed wort left behind in the kettle, in litres: `postBoilVolume −
             volumeIntoFermenter`. Calibrates the device setup's kettleLossVolume. Omitted when
             either volume is missing.
+        sourceWaterId:
+          type: string
+          format: uuid
+          description: >-
+            The brewery source water used for this brew (a BrewerySourceWater). Defaults to the
+            brewery's default source. The water plan below is computed from this source, the primary
+            recipe's targetWaterProfile and the batch volume.
+        roDilutionPercent:
+          type: number
+          format: double
+          description: >-
+            Optional dilution of the source water with RO/distilled water (0–100 %), the lever for
+            reducing ions the salts can't (alkalinity in particular). Omit for no dilution.
+        waterAdditions:
+          type: array
+          readOnly: true
+          description: >-
+            Computed brewing-salt additions (grams) that bring the (optionally diluted) source water
+            closest to the recipe's targetWaterProfile — a bounded least-squares fit. Surfaces as the
+            water-treatment PREPARE step's amounts. Empty when no source/target is set.
+          items:
+            $ref: '#/components/schemas/WaterAddition'
+        waterAcidMl:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Estimated acid (millilitres of 88% lactic) to bring the predicted mash pH toward ~5.4.
+            Omitted when no acid is needed or inputs are missing.
+        predictedMashPh:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Predicted mash pH from the treated water's residual alkalinity (Kolbach) and the recipe's
+            grain bill. An estimate — compared against the measured `mashPh` to close the loop.
+        treatedWaterProfile:
+          $ref: '#/components/schemas/WaterProfile'
+          description: Read-only resulting ion profile after dilution + the computed salt additions.
 
     SessionRecipe:
       type: object
@@ -3484,6 +3645,12 @@ components:
             computation).
           items:
             $ref: '#/components/schemas/RecipeMisc'
+        targetWaterProfile:
+          $ref: '#/components/schemas/WaterProfile'
+          description: >-
+            Optional desired brewing-water profile (the six ions) for this recipe — its authoring
+            intent. The recipe stays source-agnostic: the session combines this target with its chosen
+            source water to compute the salt additions. Omit for recipes that don't specify water.
 
     RecipeFermentable:
       type: object
@@ -4024,6 +4191,103 @@ components:
       type: string
       enum:
         - BREWFATHER
+
+    WaterProfile:
+      type: object
+      description: A brewing-water ion profile, all concentrations in mg/L (ppm).
+      properties:
+        calcium:
+          type: number
+          format: double
+          description: Ca²⁺ (mg/L).
+        magnesium:
+          type: number
+          format: double
+          description: Mg²⁺ (mg/L).
+        sodium:
+          type: number
+          format: double
+          description: Na⁺ (mg/L).
+        chloride:
+          type: number
+          format: double
+          description: Cl⁻ (mg/L).
+        sulfate:
+          type: number
+          format: double
+          description: SO₄²⁻ (mg/L).
+        bicarbonate:
+          type: number
+          format: double
+          description: HCO₃⁻ (mg/L) — alkalinity.
+
+    WaterSalt:
+      type: string
+      description: >-
+        A brewing salt the optimiser can dose. Each contributes a fixed ion vector per gram
+        (stoichiometry). Acid (for alkalinity/pH) is handled separately via the session's waterAcidMl.
+      enum:
+        - GYPSUM
+        - CALCIUM_CHLORIDE
+        - EPSOM_SALT
+        - TABLE_SALT
+        - BAKING_SODA
+
+    WaterAddition:
+      type: object
+      description: A computed brewing-salt addition.
+      required:
+        - salt
+        - grams
+      properties:
+        salt:
+          $ref: '#/components/schemas/WaterSalt'
+        grams:
+          type: number
+          format: double
+          description: Amount to add for the batch, in grams.
+
+    BrewerySourceWater:
+      type: object
+      description: >-
+        A named source-water profile a brewery has on hand (tap, spring, well, RO …). A brewery owns
+        several; one is the default a session uses unless overridden.
+      required:
+        - name
+        - profile
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+        isDefault:
+          type: boolean
+          description: Whether this is the brewery's default source (used by sessions unless overridden).
+        profile:
+          $ref: '#/components/schemas/WaterProfile'
+
+    WaterTarget:
+      type: object
+      description: >-
+        A named target water-profile preset (e.g. "Hoppy / high-sulfate") a recipe's targetWaterProfile
+        can be seeded from. Reference data, like recipe styles.
+      required:
+        - id
+        - name
+        - profile
+      properties:
+        id:
+          type: string
+          description: Stable identifier (e.g. "hoppy").
+        name:
+          type: string
+        note:
+          type: string
+          description: Short description of what the profile suits.
+        profile:
+          $ref: '#/components/schemas/WaterProfile'
 
     DeviceSetup:
       type: object
