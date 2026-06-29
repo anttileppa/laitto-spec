@@ -1,0 +1,39 @@
+version: 1
+projectKey: laitto
+
+routing:
+  sourceRepos:
+    - anttileppa/laitto
+  targetRepo: anttileppa/laitto-spec
+
+automation:
+  enabledTaskTypes:
+    - docs
+    - small-bugfix
+    - focused-feature
+  maxChangedFiles: 8
+  maxDiffLines: 500
+  timeoutMinutes: 30
+  allowPaths:
+    - swagger.yaml
+    - openapitools.json
+    - README.md
+  denyPaths: []
+
+quality:
+  requiredChecks:
+    - swagger syntax validation
+  minConfidence: 0.8
+  requireDraftPr: true
+
+triage:
+  skipLabels:
+    - blocked
+    - do-not-automate
+  escalateLabels:
+    - architecture
+    - cross-repo
+
+handoff:
+  onEscalate: comment
+  onMissingInfo: comment
