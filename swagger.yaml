@@ -1,6 +1,7 @@
 openapi: 3.1.0
 info:
   version: 1.0.0
+  description: API for managing device setups in Laitto HERMS.
   title: Laitto HERMS API
 security:
   - bearerAuth: []
