@@ -1,6 +1,7 @@
 openapi: 3.1.0
 info:
   version: 1.0.0
+  description: API for managing device setups in Laitto HERMS.
   title: Laitto HERMS API
 security:
   - bearerAuth: []
@@ -993,7 +994,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SessionRecipe'
+              $ref: '#/components/schemas/Batch'
         description: Payload
         required: true
       responses:
@@ -1002,7 +1003,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SessionRecipe"
+                $ref: "#/components/schemas/Batch"
         default:
           description: Error
           content:
@@ -1031,7 +1032,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/SessionRecipe"
+                  $ref: "#/components/schemas/Batch"
         default:
           description: Error
           content:
@@ -1067,7 +1068,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SessionRecipe"
+                $ref: "#/components/schemas/Batch"
         default:
           description: Error
           content:
@@ -1099,7 +1100,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SessionRecipe'
+              $ref: '#/components/schemas/Batch'
         description: Payload
         required: true
       responses:
@@ -1108,7 +1109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SessionRecipe"
+                $ref: "#/components/schemas/Batch"
         default:
           description: Error
           content:
@@ -1266,7 +1267,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/SessionRecipeStep"
+                  $ref: "#/components/schemas/BatchStep"
         default:
           description: Error
           content:
@@ -1300,7 +1301,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SessionRecipeStep'
+              $ref: '#/components/schemas/BatchStep'
         description: Payload
         required: true
       responses:
@@ -1309,7 +1310,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SessionRecipeStep"
+                $ref: "#/components/schemas/BatchStep"
         default:
           description: Error
           content:
@@ -2955,7 +2956,7 @@ components:
           $ref: '#/components/schemas/WaterProfile'
           description: Read-only resulting ion profile after dilution + the computed salt additions.
 
-    SessionRecipe:
+    Batch:
       type: object
       required:
         - recipeId
