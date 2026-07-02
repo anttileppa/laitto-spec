@@ -1146,6 +1146,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/batches/{batchId}/fermentationHistory:
+    get:
+      operationId: listBatchFermentationHistory
+      summary: List batch fermentation history
+      description: >
+        Lists the batch's fermentation-reading time series (gravity + temperature over time),
+        ordered by time. Append-only; charted like the session temperature history.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+        - name: since
+          required: false
+          in: query
+          description: only return readings at or after this time
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: batch fermentation history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FermentationReading"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/activeScenarios:
     post:
       operationId: createSessionActiveScenario
@@ -1829,6 +1876,129 @@ paths:
       tags: [Water]
       parameters:
         - name: sourceWaterId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: A successful response
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/hydrometers:
+    get:
+      operationId: listHydrometers
+      summary: List hydrometers
+      description: The floating hydrometers registered to this brewery (Equipment ▸ Hydrometers).
+      tags: [Hydrometers]
+      responses:
+        "200":
+          description: Hydrometers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hydrometer"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createHydrometer
+      summary: Create a hydrometer
+      description: Registers a hydrometer to the brewery.
+      tags: [Hydrometers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hydrometer'
+        required: true
+      responses:
+        "200":
+          description: Created hydrometer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hydrometer"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/hydrometers/{hydrometerId}:
+    get:
+      operationId: findHydrometer
+      summary: Find a hydrometer
+      tags: [Hydrometers]
+      parameters:
+        - name: hydrometerId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A hydrometer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hydrometer"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: updateHydrometer
+      summary: Update a hydrometer
+      description: Update a hydrometer, including assigning/freeing it from a batch.
+      tags: [Hydrometers]
+      parameters:
+        - name: hydrometerId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hydrometer'
+        required: true
+      responses:
+        "200":
+          description: Updated hydrometer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hydrometer"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteHydrometer
+      summary: Delete a hydrometer
+      tags: [Hydrometers]
+      parameters:
+        - name: hydrometerId
           required: true
           in: path
           schema:
@@ -3007,6 +3177,165 @@ components:
             Computed wort left behind in the kettle, in litres: `postBoilVolume −
             volumeIntoFermenter`. Calibrates the device setup's kettleLossVolume. Omitted when
             either volume is missing.
+        hydrometerId:
+          type: string
+          format: uuid
+          description: >-
+            The hydrometer (a brewery Hydrometer) assigned to this batch while it ferments. Its
+            telemetry is pulled into this batch's fermentation readings. Omit / null when none is
+            assigned.
+        pitchedAt:
+          type: string
+          format: date-time
+          description: >-
+            When the yeast was pitched — the start of the fermentation clock, used for
+            days-fermenting and gravity-velocity windows. Omit until pitched.
+        currentGravity:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Latest fermentation reading's specific gravity. Computed read-only from the batch's
+            fermentation readings; omitted when there are none.
+        abv:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Alcohol by volume (%) so far: `(originalGravity − currentGravity) × 131.25`. Computed
+            read-only; omitted when the OG or a current gravity is missing.
+        apparentAttenuation:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Apparent attenuation (%): `(originalGravity − currentGravity) / (originalGravity − 1) ×
+            100`. Computed read-only; omitted when the OG or a current gravity is missing.
+        progressToFg:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Progress toward the estimated final gravity (%), clamped to 0–100:
+            `(originalGravity − currentGravity) / (originalGravity − recipe.targetFinalGravity) ×
+            100`. Computed read-only; omitted when an input is missing.
+        gravityVelocity:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Recent rate of gravity change in gravity points per day (negative while attenuating),
+            over a recent window. Computed read-only; omitted with too little history.
+        fgStable:
+          type: boolean
+          readOnly: true
+          description: >-
+            True when gravity has been effectively flat over a recent window (drift under ~1 point
+            and low velocity) — the "fermentation looks complete, record FG & advance" signal.
+            Computed read-only.
+
+    HydrometerSource:
+      type: string
+      description: >-
+        Where a hydrometer's telemetry comes from. RAPT (the RAPT Pill via RAPT Cloud) is the
+        day-one adapter; the model is source-agnostic, so clients should tolerate future values
+        (iSpindel, Tilt, own firmware, …).
+      enum:
+        - RAPT
+
+    Hydrometer:
+      type: object
+      description: >-
+        A brewery-owned floating hydrometer (e.g. a RAPT Pill) that reports gravity + temperature.
+        It is a first-class brewery device (not part of a device setup) and is assigned to the batch
+        it is tracking while that batch ferments, following the beer between fermenters.
+      required:
+        - name
+        - source
+        - externalDeviceId
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Brewer-facing name for the hydrometer.
+        source:
+          $ref: '#/components/schemas/HydrometerSource'
+        externalDeviceId:
+          type: string
+          description: >-
+            The device identifier in the source system (e.g. the RAPT hydrometer id), used to pull
+            its telemetry.
+        lastBattery:
+          type: number
+          format: double
+          readOnly: true
+          description: Last reported battery level (%). Omitted until a reading is seen.
+        lastRssi:
+          type: number
+          format: double
+          readOnly: true
+          description: Last reported signal strength (dBm). Omitted until a reading is seen.
+        lastSeenAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When telemetry was last pulled for this hydrometer. Omitted until first seen.
+        assignedBatchId:
+          type: string
+          format: uuid
+          description: >-
+            The batch this hydrometer is currently tracking. Set to assign it to a fermenting batch,
+            clear (empty/null) to free it. Omit on update to leave the assignment unchanged.
+
+    FermentationReading:
+      type: object
+      description: >-
+        A single timestamped sample in a batch's fermentation history — gravity + temperature
+        together (plus optional device telemetry). Append-only; charted like the session temperature
+        history. Source-agnostic.
+      required:
+        - time
+        - gravity
+        - temperature
+        - source
+      properties:
+        time:
+          type: string
+          format: date-time
+          description: Time the reading was recorded.
+          readOnly: true
+        gravity:
+          type: number
+          format: double
+          description: Specific gravity at this reading.
+          readOnly: true
+        temperature:
+          type: number
+          format: double
+          description: Reading temperature in degrees Celsius.
+          readOnly: true
+        gravityVelocity:
+          type: number
+          format: double
+          description: >-
+            Rate of gravity change reported by the source at this reading, in gravity points per
+            day, when the source provides it (RAPT does). Omitted otherwise.
+          readOnly: true
+        battery:
+          type: number
+          format: double
+          description: Battery level (%) reported with this reading. Omitted when not reported.
+          readOnly: true
+        rssi:
+          type: number
+          format: double
+          description: Signal strength (dBm) reported with this reading. Omitted when not reported.
+          readOnly: true
+        source:
+          $ref: '#/components/schemas/HydrometerSource'
 
     SessionTemperature:
       type: object
@@ -4073,6 +4402,22 @@ components:
           type: boolean
           readOnly: true
           description: True when an OpenAI API key is configured for this brewery.
+        raptUsername:
+          type: string
+          description: >-
+            RAPT API username (the account the hydrometers report under). Returned so the UI can
+            show the connected account; null when the integration is not configured.
+        raptApiKey:
+          type: string
+          writeOnly: true
+          description: >-
+            RAPT API secret. Write-only — it is never returned. On update: send a non-empty value
+            together with raptUsername to connect, send an empty string to disconnect, or omit the
+            field to leave the integration unchanged.
+        raptConnected:
+          type: boolean
+          readOnly: true
+          description: True when RAPT credentials are configured for this brewery.
 
     BreweryMember:
       type: object
