@@ -1,7 +1,6 @@
 openapi: 3.1.0
 info:
   version: 1.0.0
-  description: API for managing device setups in Laitto HERMS.
   title: Laitto HERMS API
 security:
   - bearerAuth: []
@@ -975,11 +974,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/sessions/{sessionId}/recipes:
+  /v1/sessions/{sessionId}/batches:
     post:
-      operationId: createSessionRecipe
-      summary: Create session recipe.
-      description: Creates a session recipe.
+      operationId: createBatch
+      summary: Create batch.
+      description: Creates a batch.
       tags:
         - Sessions
       parameters:
@@ -999,7 +998,7 @@ paths:
         required: true
       responses:
         "200":
-          description: Created session recipe
+          description: Created batch
           content:
             application/json:
               schema:
@@ -1011,9 +1010,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
     get:
-      operationId: listSessionRecipes
-      summary: List session recipes
-      description: Lists session recipes
+      operationId: listBatches
+      summary: List batches
+      description: Lists batches
       tags:
         - Sessions
       parameters:
@@ -1026,7 +1025,7 @@ paths:
             format: uuid
       responses:
         "200":
-          description: session recipes
+          description: batches
           content:
             application/json:
               schema:
@@ -1040,11 +1039,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/sessions/{sessionId}/recipes/{sessionRecipeId}:
+  /v1/sessions/{sessionId}/batches/{batchId}:
     get:
-      operationId: findSessionRecipe
-      summary: Find a session recipe.
-      description: Finds a session recipe by id
+      operationId: findBatch
+      summary: Find a batch.
+      description: Finds a batch by id
       tags:
         - Sessions
       parameters:
@@ -1055,16 +1054,16 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: sessionRecipeId
+        - name: batchId
           required: true
           in: path
-          description: session recipe id
+          description: batch id
           schema:
             type: string
             format: uuid
       responses:
         "200":
-          description: A session recipe
+          description: A batch
           content:
             application/json:
               schema:
@@ -1076,9 +1075,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
     put:
-      operationId: updateSessionRecipe
-      summary: Update session recipe
-      description: Update a session recipe
+      operationId: updateBatch
+      summary: Update batch
+      description: Update a batch
       tags:
         - Sessions
       parameters:
@@ -1089,10 +1088,10 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: sessionRecipeId
+        - name: batchId
           required: true
           in: path
-          description: session recipe id
+          description: batch id
           schema:
             type: string
             format: uuid
@@ -1105,7 +1104,7 @@ paths:
         required: true
       responses:
         "200":
-          description: Updated session recipe
+          description: Updated batch
           content:
             application/json:
               schema:
@@ -1117,9 +1116,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
     delete:
-      operationId: deleteSessionRecipe
-      summary: Delete session recipe
-      description: Delete a session recipe
+      operationId: deleteBatch
+      summary: Delete batch
+      description: Delete a batch
       tags:
         - Sessions
       parameters:
@@ -1130,10 +1129,10 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: sessionRecipeId
+        - name: batchId
           required: true
           in: path
-          description: session recipe id
+          description: batch id
           schema:
             type: string
             format: uuid
@@ -1244,11 +1243,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/sessions/{sessionId}/recipeSteps:
+  /v1/sessions/{sessionId}/batchSteps:
     get:
-      operationId: listSessionRecipeSteps
-      summary: List session recipe steps
-      description: List session recipe steps
+      operationId: listBatchSteps
+      summary: List batch steps
+      description: List batch steps
       tags:
         - Sessions
       parameters:
@@ -1261,7 +1260,7 @@ paths:
             format: uuid
       responses:
         "200":
-          description: session recipe steps
+          description: batch steps
           content:
             application/json:
               schema:
@@ -1275,11 +1274,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/sessions/{sessionId}/recipeSteps/{recipeStepId}:
+  /v1/sessions/{sessionId}/batchSteps/{batchStepId}:
     put:
-      operationId: updateSessionRecipeStep
-      summary: Update session recipe step
-      description: Update a session recipe step
+      operationId: updateBatchStep
+      summary: Update batch step
+      description: Update a batch step
       tags:
         - Sessions
       parameters:
@@ -1290,10 +1289,10 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: recipeStepId
+        - name: batchStepId
           required: true
           in: path
-          description: recipe step id
+          description: batch step id
           schema:
             type: string
             format: uuid
@@ -1306,7 +1305,7 @@ paths:
         required: true
       responses:
         "200":
-          description: Updated session recipe step
+          description: Updated batch step
           content:
             application/json:
               schema:
@@ -2789,11 +2788,13 @@ components:
 
     SessionStatus:
       type: string
+      description: >-
+        The brew-day arc. Ends at BREWED once the worts are in fermenters; each batch then runs
+        its own lifecycle (see BatchStatus).
       enum:
         - DRAFT
         - BREWING
-        - FERMENTING
-        - DONE
+        - BREWED
 
     Session:
       required:
@@ -2812,10 +2813,10 @@ components:
           format: uuid
         status:
           $ref: '#/components/schemas/SessionStatus'
-        recipeIds:
+        batchIds:
           type: array
           readOnly: true
-          description: Ordered list of recipe IDs linked to this session (brew order).
+          description: Ordered list of batch IDs linked to this session (brew order).
           items:
             type: string
             format: uuid
@@ -2838,6 +2839,96 @@ components:
             Manually entered ambient temperature (°C). When set it overrides the ambient
             thermometer (used as the grain temperature for strike calculations). Omit to use the
             sensor, which itself falls back to a 20 °C default.
+        sourceWaterId:
+          type: string
+          format: uuid
+          description: >-
+            The brewery source water used for this brew (a BrewerySourceWater). Defaults to the
+            brewery's default source. The water plan below is computed from this source, the primary
+            recipe's targetWaterProfile and the batch volume.
+        roDilutionPercent:
+          type: number
+          format: double
+          description: >-
+            Optional dilution of the source water with RO/distilled water (0–100 %), the lever for
+            reducing ions the salts can't (alkalinity in particular). Omit for no dilution.
+        waterAdditions:
+          type: array
+          readOnly: true
+          description: >-
+            Computed brewing-salt additions (grams) that bring the (optionally diluted) source water
+            closest to the recipe's targetWaterProfile — a bounded least-squares fit. Surfaces as the
+            water-treatment PREPARE step's amounts. Empty when no source/target is set.
+          items:
+            $ref: '#/components/schemas/WaterAddition'
+        waterAcidMl:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Estimated acid (millilitres of 88% lactic) to bring the predicted mash pH toward ~5.4.
+            Omitted when no acid is needed or inputs are missing.
+        predictedMashPh:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Predicted mash pH from the treated water's residual alkalinity (Kolbach) and the recipe's
+            grain bill. An estimate — compared against the batch's measured `mashPh` to close the loop.
+        treatedWaterProfile:
+          $ref: '#/components/schemas/WaterProfile'
+          description: Read-only resulting ion profile after dilution + the computed salt additions.
+
+    BatchStatus:
+      type: string
+      description: >-
+        A batch's own arc, independent of the session's brew day: FERMENTING once the wort is in
+        the fermenter, an optional CONDITIONING hold, PACKAGED, then DONE.
+      enum:
+        - FERMENTING
+        - CONDITIONING
+        - PACKAGED
+        - DONE
+
+    Batch:
+      type: object
+      description: >-
+        One beer's whole life — recipe, brew-day result and fermentation/packaging — within a
+        session (a brew day may produce several batches).
+      required:
+        - recipeId
+        - brewOrder
+        - status
+        - elapsedTime
+        - paused
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sessionId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: The session (brew day) this batch belongs to.
+        recipeId:
+          type: string
+          format: uuid
+        brewOrder:
+          type: integer
+          format: int32
+          description: 0-based position of this batch within its session's brew day.
+        status:
+          $ref: '#/components/schemas/BatchStatus'
+        elapsedTime:
+          type: integer
+          format: int32
+          description: |
+            The current time in seconds since the batch was started. This value progresses when the batch is not paused.
+        paused:
+          type: boolean
+          description: |
+            Indicates whether the batch is paused. When true, the elapsedTime does not progress.
         mashPh:
           type: number
           format: double
@@ -2916,69 +3007,6 @@ components:
             Computed wort left behind in the kettle, in litres: `postBoilVolume −
             volumeIntoFermenter`. Calibrates the device setup's kettleLossVolume. Omitted when
             either volume is missing.
-        sourceWaterId:
-          type: string
-          format: uuid
-          description: >-
-            The brewery source water used for this brew (a BrewerySourceWater). Defaults to the
-            brewery's default source. The water plan below is computed from this source, the primary
-            recipe's targetWaterProfile and the batch volume.
-        roDilutionPercent:
-          type: number
-          format: double
-          description: >-
-            Optional dilution of the source water with RO/distilled water (0–100 %), the lever for
-            reducing ions the salts can't (alkalinity in particular). Omit for no dilution.
-        waterAdditions:
-          type: array
-          readOnly: true
-          description: >-
-            Computed brewing-salt additions (grams) that bring the (optionally diluted) source water
-            closest to the recipe's targetWaterProfile — a bounded least-squares fit. Surfaces as the
-            water-treatment PREPARE step's amounts. Empty when no source/target is set.
-          items:
-            $ref: '#/components/schemas/WaterAddition'
-        waterAcidMl:
-          type: number
-          format: double
-          readOnly: true
-          description: >-
-            Estimated acid (millilitres of 88% lactic) to bring the predicted mash pH toward ~5.4.
-            Omitted when no acid is needed or inputs are missing.
-        predictedMashPh:
-          type: number
-          format: double
-          readOnly: true
-          description: >-
-            Predicted mash pH from the treated water's residual alkalinity (Kolbach) and the recipe's
-            grain bill. An estimate — compared against the measured `mashPh` to close the loop.
-        treatedWaterProfile:
-          $ref: '#/components/schemas/WaterProfile'
-          description: Read-only resulting ion profile after dilution + the computed salt additions.
-
-    Batch:
-      type: object
-      required:
-        - recipeId
-        - elapsedTime
-        - paused
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        recipeId:
-          type: string
-          format: uuid
-        elapsedTime:
-          type: integer
-          format: int32
-          description: |
-            The current time in seconds since the session recipe was started. This value progresses when the session recipe is not paused.
-        paused:
-          type: boolean
-          description: |
-            Indicates whether the session is paused for given recipe. When true, the elapsedTime does not progress.
 
     SessionTemperature:
       type: object
@@ -3225,7 +3253,7 @@ components:
           description: Previous recipe step, for RECIPE_STEP_ADVANCED.
           readOnly: true
 
-    SessionRecipeStep:
+    BatchStep:
       type: object
       properties:
         id:
@@ -3302,7 +3330,7 @@ components:
           $ref: '#/components/schemas/StepMeasurement'
           description: |
             When set, this step records a brew-day reading (the value is written to the matching
-            Session brew-day field). Derived from the recipe; immutable during the session.
+            Batch brew-day field). Derived from the recipe; immutable during the session.
         startedAt:
           description: |
             The time when the step was started. Setting this value will mark the step as started.
@@ -3484,7 +3512,7 @@ components:
     MeasurementReading:
       type: string
       description: >-
-        Which brew-day reading a measurement step records. Each maps to a Session brew-day field
+        Which brew-day reading a measurement step records. Each maps to a Batch brew-day field
         (see #25): MASH_PH → mashPh, PRE_BOIL_GRAVITY → preBoilGravity, ORIGINAL_GRAVITY →
         originalGravity, VOLUME_INTO_FERMENTER → volumeIntoFermenter. The gravity readings are
         temperature-corrected and store a sample temperature alongside the value.
@@ -3498,7 +3526,7 @@ components:
       type: object
       description: >-
         Marks a step as a measurement the brewer records during the brew. The recorded value is
-        written to the Session brew-day field identified by `reading`; gravity readings are
+        written to the Batch brew-day field identified by `reading`; gravity readings are
         temperature-corrected (a sample temperature is captured and stored).
       required:
         - reading
