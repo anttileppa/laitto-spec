@@ -3233,6 +3233,119 @@ components:
             True when gravity has been effectively flat over a recent window (drift under ~1 point
             and low velocity) — the "fermentation looks complete, record FG & advance" signal.
             Computed read-only.
+        fermentationProfile:
+          $ref: '#/components/schemas/FermentationProfile'
+          description: >-
+            The advisory fermentation-temperature profile for this batch (steps + triggers). Seedable
+            from the recipe's default. Omit / null for no profile.
+        fermentationAdvisory:
+          $ref: '#/components/schemas/FermentationAdvisory'
+          description: >-
+            Computed read-only advisory state for the fermentation profile (active step, the target to
+            set on the controller, whether a trigger is due, how the Pill's temperature is holding).
+            Omitted when there is no profile.
+
+    ProfileStepTriggerKind:
+      type: string
+      description: >-
+        How a fermentation profile step ends: GRAVITY (hold until the gravity falls to `below`),
+        TIME (hold for `days`), or MANUAL (hold until the brewer advances it).
+      enum:
+        - GRAVITY
+        - TIME
+        - MANUAL
+
+    ProfileStepTrigger:
+      type: object
+      description: The condition that ends a profile step and advances to the next.
+      required:
+        - kind
+      properties:
+        kind:
+          $ref: '#/components/schemas/ProfileStepTriggerKind'
+        below:
+          type: number
+          format: double
+          description: For GRAVITY — advance once the gravity is at or below this specific gravity.
+        days:
+          type: number
+          format: double
+          description: For TIME — advance after this many days on the step.
+
+    ProfileStep:
+      type: object
+      description: One step of a fermentation profile — a target temperature held until its trigger fires.
+      required:
+        - name
+        - targetC
+        - trigger
+      properties:
+        name:
+          type: string
+          description: Step name (e.g. "Primary", "Diacetyl rest", "Cold crash").
+        targetC:
+          type: number
+          format: double
+          description: Target fermentation temperature (°C) to hold during this step.
+        trigger:
+          $ref: '#/components/schemas/ProfileStepTrigger'
+
+    FermentationProfile:
+      type: object
+      description: >-
+        An advisory fermentation-temperature profile — an ordered list of steps, each held until its
+        trigger fires (e.g. Primary 18° until SG ≤ 1.018 → Diacetyl rest 20° for 2 days → Cold crash
+        2° manual). Laitto guides (shows the target to set); it does not drive the controller.
+      required:
+        - steps
+      properties:
+        steps:
+          type: array
+          description: The profile's steps, in order.
+          items:
+            $ref: '#/components/schemas/ProfileStep'
+
+    HoldQuality:
+      type: string
+      description: >-
+        How the (manually-set) controller is holding the active step's target, observed from the
+        hydrometer's temperature — not an action Laitto takes.
+      enum:
+        - ON_TARGET
+        - WARM
+        - COLD
+
+    FermentationAdvisory:
+      type: object
+      description: >-
+        Computed read-only advisory state for a batch's fermentation profile. Open-loop / human-in-the-
+        loop: Laitto holds the profile and tells the brewer what to set, using the Pill as feedback.
+      properties:
+        activeStepIndex:
+          type: integer
+          format: int32
+          readOnly: true
+          description: Index of the currently active step in the profile, or null when the profile is complete.
+        targetToSetC:
+          type: number
+          format: double
+          readOnly: true
+          description: The target temperature (°C) the brewer should have set on the controller now.
+        triggerDue:
+          type: boolean
+          readOnly: true
+          description: True when the active step's trigger has fired and the brewer should advance to the next step.
+        triggerReason:
+          type: string
+          readOnly: true
+          description: >-
+            Human-readable reason the trigger is due (e.g. "SG hit 1.018 → set 20° for the diacetyl
+            rest"). Omitted when no trigger is due.
+        holdQuality:
+          $ref: '#/components/schemas/HoldQuality'
+          description: >-
+            How the controller is holding the target, from the Pill's temperature vs. targetToSetC.
+            Omitted when there is no recent temperature or no active step.
 
     HydrometerSource:
       type: string
@@ -4009,6 +4122,11 @@ components:
             Optional desired brewing-water profile (the six ions) for this recipe — its authoring
             intent. The recipe stays source-agnostic: the session combines this target with its chosen
             source water to compute the salt additions. Omit for recipes that don't specify water.
+        defaultFermentationProfile:
+          $ref: '#/components/schemas/FermentationProfile'
+          description: >-
+            Optional default advisory fermentation-temperature profile for this recipe — seeds a
+            batch's fermentationProfile when it starts fermenting. Omit for recipes that don't specify one.
 
     RecipeFermentable:
       type: object
