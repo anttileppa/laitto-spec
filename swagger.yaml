@@ -1227,6 +1227,126 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/batches/{batchId}/notes:
+    get:
+      operationId: listBatchNotes
+      summary: List batch notes
+      description: >-
+        Lists the batch's brewer & tasting notes, ordered by creation time — the beer's diary from
+        pitch to last pour.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: batch notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BatchNote"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createBatchNote
+      summary: Create a batch note.
+      description: Adds a dated brewer/tasting note to the batch.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchNote'
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: Created batch note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchNote"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/sessions/{sessionId}/batches/{batchId}/notes/{noteId}:
+    delete:
+      operationId: deleteBatchNote
+      summary: Delete a batch note.
+      description: Deletes a batch note.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+        - name: noteId
+          required: true
+          in: path
+          description: note id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/activeScenarios:
     post:
       operationId: createSessionActiveScenario
@@ -3288,6 +3408,81 @@ components:
             Computed read-only advisory state for the fermentation profile (active step, the target to
             set on the controller, whether a trigger is due, how the Pill's temperature is holding).
             Omitted when there is no profile.
+        finalGravity:
+          type: number
+          format: double
+          description: >-
+            The recorded final gravity (e.g. 1.012), captured when the beer is packaged (the
+            FG-stable prompt suggests the current gravity). Omit until packaged.
+        packaging:
+          $ref: '#/components/schemas/BatchPackaging'
+          description: >-
+            How this beer was packaged — set once, when the batch moves to PACKAGED. Omit / null
+            until packaged.
+
+    PackagingMethod:
+      type: string
+      description: How a batch was packaged — bottles (primed) or a keg (force-carbed).
+      enum:
+        - BOTTLES
+        - KEG
+
+    BatchPackaging:
+      type: object
+      description: >-
+        The packaging record of one beer: when and how it was packaged, the carbonation
+        (method-specific — target CO₂ volumes for bottles, regulator pressure for a keg), the
+        packaged volume and container count, and the best-before date.
+      required:
+        - packagedAt
+        - method
+      properties:
+        packagedAt:
+          type: string
+          format: date-time
+          description: When the beer was packaged.
+        method:
+          $ref: '#/components/schemas/PackagingMethod'
+        carbonationVolsCo2:
+          type: number
+          format: double
+          description: >-
+            Target carbonation in volumes of CO₂ (bottles: what the priming sugar was computed
+            for). Omit for keg packaging.
+        kegPressurePsi:
+          type: number
+          format: double
+          description: Keg regulator pressure (psi) the beer carbonates at. Omit for bottles.
+        packagedVolumeL:
+          type: number
+          format: double
+          description: Volume packaged, in litres. Omit when not recorded.
+        containerCount:
+          type: integer
+          format: int32
+          description: Number of containers filled (bottles or kegs). Omit when not recorded.
+        bestBefore:
+          type: string
+          format: date-time
+          description: Best-before date. Omit when not set.
+
+    BatchNote:
+      type: object
+      description: >-
+        A dated brewer/tasting note on a batch — the beer's diary, from pitch to last pour.
+      required:
+        - text
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        text:
+          type: string
 
     ProfileStepTriggerKind:
       type: string
