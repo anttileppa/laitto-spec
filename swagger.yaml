@@ -974,6 +974,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/batches:
+    get:
+      operationId: listBreweryBatches
+      summary: List batches across the brewery
+      description: >-
+        Lists every batch across all of the brewery's sessions — the top-level Batches area
+        ("every beer, across brew days"). Each batch carries its read-only `sessionName` so the
+        list can render the "brewed on …" breadcrumb without fetching each session. Optionally
+        filtered by lifecycle status.
+      tags:
+        - Batches
+      parameters:
+        - name: status
+          required: false
+          in: query
+          description: Only batches in this lifecycle status.
+          schema:
+            $ref: '#/components/schemas/BatchStatus'
+      responses:
+        "200":
+          description: batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Batch"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/batches:
     post:
       operationId: createBatch
@@ -3013,41 +3047,16 @@ components:
           type: string
           format: uuid
           description: >-
-            The brewery source water used for this brew (a BrewerySourceWater). Defaults to the
-            brewery's default source. The water plan below is computed from this source, the primary
-            recipe's targetWaterProfile and the batch volume.
+            The brewery source water used for this brew day (a BrewerySourceWater). Defaults to
+            the brewery's default source. Each batch's water plan (`Batch.waterAdditions`) is
+            computed from this source, the batch's own recipe targetWaterProfile and the batch
+            volume — the session supplies the water, the beer owns the treatment.
         roDilutionPercent:
           type: number
           format: double
           description: >-
             Optional dilution of the source water with RO/distilled water (0–100 %), the lever for
             reducing ions the salts can't (alkalinity in particular). Omit for no dilution.
-        waterAdditions:
-          type: array
-          readOnly: true
-          description: >-
-            Computed brewing-salt additions (grams) that bring the (optionally diluted) source water
-            closest to the recipe's targetWaterProfile — a bounded least-squares fit. Surfaces as the
-            water-treatment PREPARE step's amounts. Empty when no source/target is set.
-          items:
-            $ref: '#/components/schemas/WaterAddition'
-        waterAcidMl:
-          type: number
-          format: double
-          readOnly: true
-          description: >-
-            Estimated acid (millilitres of 88% lactic) to bring the predicted mash pH toward ~5.4.
-            Omitted when no acid is needed or inputs are missing.
-        predictedMashPh:
-          type: number
-          format: double
-          readOnly: true
-          description: >-
-            Predicted mash pH from the treated water's residual alkalinity (Kolbach) and the recipe's
-            grain bill. An estimate — compared against the batch's measured `mashPh` to close the loop.
-        treatedWaterProfile:
-          $ref: '#/components/schemas/WaterProfile'
-          description: Read-only resulting ion profile after dilution + the computed salt additions.
 
     BatchStatus:
       type: string
@@ -3081,6 +3090,13 @@ components:
           format: uuid
           readOnly: true
           description: The session (brew day) this batch belongs to.
+        sessionName:
+          type: string
+          readOnly: true
+          description: >-
+            Name of the session (brew day) this batch belongs to — carried on the batch so
+            brewery-wide batch lists render the "brewed on …" breadcrumb without per-session
+            fetches.
         recipeId:
           type: string
           format: uuid
@@ -3177,6 +3193,34 @@ components:
             Computed wort left behind in the kettle, in litres: `postBoilVolume −
             volumeIntoFermenter`. Calibrates the device setup's kettleLossVolume. Omitted when
             either volume is missing.
+        waterAdditions:
+          type: array
+          readOnly: true
+          description: >-
+            Computed brewing-salt additions (grams) that bring the session's (optionally diluted)
+            source water closest to THIS batch's recipe targetWaterProfile — a bounded
+            least-squares fit, per beer. Surfaces as the batch's water-treatment PREPARE steps.
+            Empty when no source/target is set.
+          items:
+            $ref: '#/components/schemas/WaterAddition'
+        waterAcidMl:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Estimated acid (millilitres of 88% lactic) to bring this batch's predicted mash pH
+            toward ~5.4. Omitted when no acid is needed or inputs are missing.
+        predictedMashPh:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Predicted mash pH from the treated water's residual alkalinity (Kolbach) and this
+            batch's recipe grain bill. An estimate — compared against the batch's measured
+            `mashPh` to close the loop.
+        treatedWaterProfile:
+          $ref: '#/components/schemas/WaterProfile'
+          description: Read-only resulting ion profile after dilution + this batch's computed salt additions.
         hydrometerId:
           type: string
           format: uuid
