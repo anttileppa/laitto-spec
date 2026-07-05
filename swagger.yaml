@@ -2045,6 +2045,70 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/advisoryEvents:
+    get:
+      operationId: listAdvisoryEvents
+      summary: List advisory events
+      description: >-
+        Lists the brewery's persisted fermentation-advisory events ("SG hit 1.018 — set 20° for
+        the diacetyl rest", "gravity is stable, looks done"), newest first — the notification
+        feed. Optionally filtered by acknowledged state (acknowledged=false is the unread feed).
+      tags:
+        - AdvisoryEvents
+      parameters:
+        - name: acknowledged
+          required: false
+          in: query
+          description: Only events with this acknowledged state.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: advisory events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdvisoryEvent"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/advisoryEvents/{advisoryEventId}/acknowledge:
+    post:
+      operationId: acknowledgeAdvisoryEvent
+      summary: Acknowledge an advisory event.
+      description: >-
+        Marks the event acknowledged ("I set the controller"). Durable — the same transition will
+        not re-alert. Idempotent on an already-acknowledged event.
+      tags:
+        - AdvisoryEvents
+      parameters:
+        - name: advisoryEventId
+          required: true
+          in: path
+          description: advisory event id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The acknowledged event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisoryEvent"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/hydrometers:
     get:
       operationId: listHydrometers
@@ -3483,6 +3547,59 @@ components:
           readOnly: true
         text:
           type: string
+
+    AdvisoryEventKind:
+      type: string
+      description: >-
+        What fired: TRIGGER_DUE (a fermentation-profile step's trigger crossed — go set the
+        controller to the next target) or FG_STABLE (gravity has flattened — fermentation looks
+        complete).
+      enum:
+        - TRIGGER_DUE
+        - FG_STABLE
+
+    AdvisoryEvent:
+      type: object
+      description: >-
+        A persisted fermentation-advisory notification, written once per advisory transition by
+        the poll cycle (idempotent per step). Acknowledging is durable — from the feed or the
+        batch's temperature-plan card — so the same transition never re-alerts. Read-only;
+        acknowledge via its endpoint.
+      required:
+        - batchId
+        - kind
+        - message
+        - firedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        batchId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: The batch (beer) the advisory concerns.
+        sessionId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: The batch's session — carried so the feed can link without extra fetches.
+        kind:
+          $ref: '#/components/schemas/AdvisoryEventKind'
+        message:
+          type: string
+          readOnly: true
+          description: The human advisory, e.g. "Gravity reached 1.018 — set your controller to 20° for the Diacetyl rest."
+        firedAt:
+          type: string
+          format: date-time
+          readOnly: true
+        acknowledgedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the brewer acknowledged it. Omitted while unacknowledged.
 
     ProfileStepTriggerKind:
       type: string
