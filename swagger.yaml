@@ -2881,11 +2881,13 @@ paths:
     post:
       operationId: createDeviceLog
       summary: Post log data from device
+      deprecated: true
       description: >-
-        Posts one diagnostic log line from a controller. Persisted with a short retention
-        window against the controller identified by the token, when one is presented and
-        valid; a legacy tokenless call (pre-onboarding rollout) is still accepted but not
-        persisted. Read the persisted logs via GET /v1/controllers/{controllerId}/logs.
+        Deprecated (#88): superseded by the `logs` field on POST
+        /v1/deviceData/controllers/{controllerId}/sync, which piggybacks log lines on the sync
+        round-trip instead of a separate call. Kept only for firmware that hasn't migrated yet;
+        still persists with a short retention window against the controller identified by the
+        token, when one is presented and valid, or logs-only for a legacy tokenless call.
       tags:
         - DeviceData
       security:
@@ -5529,6 +5531,16 @@ components:
             stays small.
           items:
             $ref: '#/components/schemas/ControllerChannel'
+        logs:
+          type: array
+          description: >
+            Pending diagnostic log lines (#88), piggybacked on the sync round-trip instead of a
+            separate call per line. Bounded per sync by the controller; any lines it couldn't fit
+            drain over the next cycle(s) — logs are short-retention diagnostics, not history, so a
+            brief delay is fine. Superseded the standalone POST /v1/deviceData/{deviceId}/logs,
+            which is deprecated (kept only for firmware that hasn't migrated yet).
+          items:
+            type: string
 
     ControllerSyncReading:
       type: object
