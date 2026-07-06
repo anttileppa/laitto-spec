@@ -2881,9 +2881,16 @@ paths:
     post:
       operationId: createDeviceLog
       summary: Post log data from device
-      description: This method is used to post log data from devices. It's main purpose is to report their current status back to the server.
+      description: >-
+        Posts one diagnostic log line from a controller. Persisted with a short retention
+        window against the controller identified by the token, when one is presented and
+        valid; a legacy tokenless call (pre-onboarding rollout) is still accepted but not
+        persisted. Read the persisted logs via GET /v1/controllers/{controllerId}/logs.
       tags:
         - DeviceData
+      security:
+        - controllerAuth: []
+        - {}
       parameters:
         - name: deviceId
           in: path
@@ -3152,6 +3159,39 @@ paths:
       responses:
         "204":
           description: Token revoked
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/controllers/{controllerId}/logs:
+    get:
+      operationId: listControllerLogs
+      summary: List a controller's recent device logs
+      description: >-
+        Lists the controller's persisted diagnostic log lines, newest first, within the
+        short server-side retention window (device logs are not a long-term audit trail).
+      tags:
+        - Controllers
+      parameters:
+        - name: controllerId
+          required: true
+          in: path
+          description: controller id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The controller's recent device logs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeviceLog"
         default:
           description: Error
           content:
@@ -5555,6 +5595,28 @@ components:
       properties:
         message:
           type: string
+
+    DeviceLog:
+      type: object
+      description: >-
+        A persisted diagnostic log line from a controller, kept only for a short
+        server-side retention window (not a long-term audit trail). Read-only.
+      required:
+        - id
+        - message
+        - loggedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        loggedAt:
+          type: string
+          format: date-time
+          readOnly: true
 
     ControllerClaimStatus:
       type: string
