@@ -2155,6 +2155,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/hydrometers/available:
+    get:
+      operationId: listAvailableHydrometers
+      summary: Discover the connected source's hydrometers
+      description: >-
+        The hydrometers visible on the brewery's connected telemetry source (RAPT Cloud today),
+        pulled live — so a brewer picks a Pill instead of typing its device id (#93). Each carries
+        a `registered` flag for the ones already in this brewery's registry, so the UI can offer
+        only the new ones. Doubles as a connection test: it authenticates against the source.
+        Returns an empty array when no source is connected; a source auth/reachability failure is
+        an error.
+      tags: [Hydrometers]
+      responses:
+        "200":
+          description: The source's available hydrometers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableHydrometer"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/hydrometers/{hydrometerId}:
     get:
       operationId: findHydrometer
@@ -3800,6 +3828,39 @@ components:
           description: >-
             The batch this hydrometer is currently tracking. Set to assign it to a fermenting batch,
             clear (empty/null) to free it. Omit on update to leave the assignment unchanged.
+
+    AvailableHydrometer:
+      type: object
+      description: >-
+        A hydrometer discovered on the brewery's connected telemetry source (#93), not necessarily
+        registered yet. Read-only, pulled live from the source (RAPT Cloud); use `externalDeviceId`
+        to register it via POST /v1/hydrometers.
+      required:
+        - externalDeviceId
+        - name
+        - registered
+      properties:
+        externalDeviceId:
+          type: string
+          description: The device id in the source system — what a POST /v1/hydrometers needs.
+        name:
+          type: string
+          description: The hydrometer's name in the source system (a sensible default when registering).
+        battery:
+          type: number
+          format: double
+          description: Last reported battery level (%), if known.
+        rssi:
+          type: number
+          format: double
+          description: Last reported signal strength (dBm), if known.
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: When the source last heard from this hydrometer, if known.
+        registered:
+          type: boolean
+          description: Whether this hydrometer is already in the brewery's registry (dedupe hint for the UI).
 
     FermentationReading:
       type: object
