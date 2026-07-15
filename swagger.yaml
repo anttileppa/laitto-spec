@@ -3470,7 +3470,10 @@ components:
           readOnly: true
           description: >-
             Predicted mash pH from the treated water's residual alkalinity (Kolbach) and this
-            batch's recipe grain bill. An estimate — compared against the batch's measured
+            batch's recipe grain bill. Placement-aware (#66): for a MASH_ADDITION recipe the
+            estimate uses the concentrated mash-water dose (full-batch salts in the mash water
+            alone, scaled by the recipe's mashWaterVolume; falls back to the pre-treat estimate
+            when that volume is unknown). An estimate — compared against the batch's measured
             `mashPh` to close the loop.
         treatedWaterProfile:
           $ref: '#/components/schemas/WaterProfile'
@@ -4581,6 +4584,12 @@ components:
             Optional desired brewing-water profile (the six ions) for this recipe — its authoring
             intent. The recipe stays source-agnostic: the session combines this target with its chosen
             source water to compute the salt additions. Omit for recipes that don't specify water.
+        waterPlacement:
+          $ref: '#/components/schemas/WaterPlacement'
+          description: >-
+            Where this recipe's water additions happen on brew day (#66). Defaults to the brewery's
+            defaultWaterPlacement (PRE_TREAT when that is unset) for new recipes and imports. Only
+            meaningful when targetWaterProfile is set.
         defaultFermentationProfile:
           $ref: '#/components/schemas/FermentationProfile'
           description: >-
@@ -4952,6 +4961,12 @@ components:
         name:
           type: string
           description: Brewery name
+        defaultWaterPlacement:
+          $ref: '#/components/schemas/WaterPlacement'
+          description: >-
+            The brewery's default water-addition placement (#66) — how this brewery usually works.
+            Seeds waterPlacement on new recipes and imports; never rewrites existing recipes.
+            PRE_TREAT when unset.
         brewfatherUserId:
           type: string
           description: >-
@@ -5183,6 +5198,18 @@ components:
         - EPSOM_SALT
         - TABLE_SALT
         - BAKING_SODA
+
+    WaterPlacement:
+      type: string
+      description: >-
+        Where a recipe's water additions happen on brew day (#66). PRE_TREAT: treat the full water
+        volume up front, as a Prepare step. MASH_ADDITION: add the salts (and acid) directly into
+        the mash at dough-in, alongside the grain — the amounts are identical (always computed
+        against the total water volume so final-wort ions land on target); only the brew-day step
+        placement and the mash-pH math (which sees the concentrated mash-water dose) differ.
+      enum:
+        - PRE_TREAT
+        - MASH_ADDITION
 
     WaterAddition:
       type: object
