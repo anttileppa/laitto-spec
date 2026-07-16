@@ -2992,8 +2992,9 @@ paths:
       description: >
         Lists devices seen reporting on this controller (via sync) that are not yet bound
         to any device in a device setup. Lets the UI offer discovered devices to pick from
-        instead of typing their ids by hand. Backed by an in-memory registry, so the list
-        reflects what has reported since the backend last started.
+        instead of typing their ids by hand. Persisted (#103) and consistent across backend
+        replicas; entries whose controller stops reporting them are purged after a short
+        retention, so the list reflects currently-reporting devices.
       tags:
         - ControllerSync
       parameters:
