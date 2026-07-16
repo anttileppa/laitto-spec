@@ -2776,6 +2776,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteCurrentBrewery
+      summary: Delete the current brewery
+      description: >-
+        Permanently deletes the caller's brewery and everything it owns — sessions (with their
+        batches, readings, notes, events and temperatures), hydrometers, recipes, device setups,
+        controllers (with their logs and claims), ingredient-catalogue entries, source waters and
+        the identity-provider organization. Irreversible; the caller's account itself is kept and
+        returns to onboarding. Added for self-service account teardown and the self-cleaning
+        stress runs (#106).
+      tags:
+        - Breweries
+      responses:
+        "204":
+          description: Brewery deleted
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /v1/brewery/members:
     get:
