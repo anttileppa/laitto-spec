@@ -3196,6 +3196,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/controllers/{controllerId}/firmware-update:
+    post:
+      operationId: requestControllerFirmwareUpdate
+      summary: Request an on-demand firmware update
+      description: >-
+        Flags the controller to check for and apply a firmware update on its next sync (#17) —
+        the on-demand path; otherwise controllers only check for updates between sessions.
+        Refused with 409 while a brewing session runs on the controller's device setup: an OTA
+        flash + reboot would interrupt temperature control mid-brew.
+      tags:
+        - Controllers
+      parameters:
+        - name: controllerId
+          required: true
+          in: path
+          description: controller id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Update requested — delivered on the controller's next sync
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Controller"
+        "409":
+          description: The controller's device setup has an active brewing session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/controllers/{controllerId}/logs:
     get:
       operationId: listControllerLogs
@@ -5652,6 +5691,19 @@ components:
           description: Expected status for each controllable device of the controller
           items:
             $ref: '#/components/schemas/ControllerSyncInstruction'
+        firmwareUpdateAllowed:
+          type: boolean
+          description: >-
+            Whether the controller may run its periodic firmware-update check now (#17): true
+            when no brewing session runs on its device setup. An OTA flash + reboot mid-brew
+            would interrupt temperature control, so firmware gates its interval checks on this
+            (replacing the old heating-gated trigger). Omitted means false (don't update).
+        firmwareUpdateRequested:
+          type: boolean
+          description: >-
+            One-shot on-demand update delivery (#17): true when a brewer requested an update via
+            POST /v1/controllers/{controllerId}/firmware-update since the last sync. The firmware
+            should check for and apply an update immediately. Cleared server-side once delivered.
 
     ControllerSyncInstruction:
       type: object
@@ -5866,6 +5918,13 @@ components:
           description: When the controller last synced
         status:
           $ref: '#/components/schemas/ControllerStatus'
+        updateRequestedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: >-
+            When an on-demand firmware update was requested (#17); cleared once the request has
+            been delivered to the controller on a sync. Absent when no update is pending.
         channels:
           type: array
           readOnly: true
