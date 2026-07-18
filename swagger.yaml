@@ -2926,45 +2926,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /v1/deviceData/{deviceId}/logs:
-    post:
-      operationId: createDeviceLog
-      summary: Post log data from device
-      deprecated: true
-      description: >-
-        Deprecated (#88): superseded by the `logs` field on POST
-        /v1/deviceData/controllers/{controllerId}/sync, which piggybacks log lines on the sync
-        round-trip instead of a separate call. Kept only for firmware that hasn't migrated yet;
-        still persists with a short retention window against the controller identified by the
-        token, when one is presented and valid, or logs-only for a legacy tokenless call.
-      tags:
-        - DeviceData
-      security:
-        - controllerAuth: []
-        - {}
-      parameters:
-        - name: deviceId
-          in: path
-          required: true
-          description: The ID of the device
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeviceDataLog'
-      responses:
-        '204':
-          description: Successful response
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /v1/deviceData/controllers/{controllerId}/sync:
     post:
       operationId: syncController
@@ -5686,8 +5647,8 @@ components:
             Pending diagnostic log lines (#88), piggybacked on the sync round-trip instead of a
             separate call per line. Bounded per sync by the controller; any lines it couldn't fit
             drain over the next cycle(s) — logs are short-retention diagnostics, not history, so a
-            brief delay is fine. Superseded the standalone POST /v1/deviceData/{deviceId}/logs,
-            which is deprecated (kept only for firmware that hasn't migrated yet).
+            brief delay is fine. The only way to submit logs (the former standalone
+            POST /v1/deviceData/{deviceId}/logs was removed once all firmware migrated).
           items:
             type: string
 
@@ -5761,14 +5722,6 @@ components:
           description: When this device was last seen reporting
           type: string
           format: date-time
-
-    DeviceDataLog:
-      type: object
-      required:
-        - message
-      properties:
-        message:
-          type: string
 
     DeviceLog:
       type: object
