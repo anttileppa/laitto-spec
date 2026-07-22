@@ -1227,6 +1227,144 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/batches/{batchId}/temperatureHistory:
+    get:
+      operationId: listBatchTemperatureHistory
+      summary: List batch temperature history
+      description: >
+        Lists this batch's slice of the session's temperature history (laitto#114). A session
+        can host multiple independent batches sharing one rig (e.g. a multi-shift brew day, each
+        batch with its own recipe and its own brew-day timer) — this windows the session's
+        shared thermometer readings to the time span this batch was actually following its own
+        recipe steps, for batch-specific devices (mash tank, hot liquid tank, ...). Ambient
+        readings are returned unwindowed (shared brew-day context, not a per-batch outcome).
+        Superseds listSessionTemperatureHistory for any UI that means "this beer's chart" rather
+        than "everything the rig measured today" — single-batch sessions return the same data
+        either way.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+        - name: thermometerDeviceId
+          required: false
+          in: query
+          description: filter to a single thermometer device
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: batch temperature history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SessionTemperatureSample"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/sessions/{sessionId}/batches/{batchId}/eventLog:
+    get:
+      operationId: listBatchEvents
+      summary: List batch brew events
+      description: >
+        Lists this batch's slice of the session's brew event log (laitto#114) — the same
+        windowing as listBatchTemperatureHistory, filtered to events whose recipe step belongs
+        to this batch's recipe. Superseds listSessionEvents for any UI that means "this beer's
+        timeline"; single-batch sessions return the same data either way.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: batch brew events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrewEvent"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/sessions/{sessionId}/batches/{batchId}/analysis:
+    get:
+      operationId: getBatchAnalysis
+      summary: Get the AI brew analysis for a batch
+      description: >
+        Returns the AI-generated brew-day analysis for this batch (laitto#114), if one has been
+        generated — a small set of findings read from this batch's windowed temperature history
+        and brew events: what went well, what deviated from target or plan, and a suggestion for
+        next time where one applies. Generated once, automatically, when the session's brewing
+        finished; 404 while not yet generated (e.g. still brewing) or not available on the
+        brewery's plan.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: the batch's brew analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchAnalysis"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/batches/{batchId}/notes:
     get:
       operationId: listBatchNotes
@@ -4177,6 +4315,61 @@ components:
           type: string
           format: uuid
           description: Previous recipe step, for RECIPE_STEP_ADVANCED.
+          readOnly: true
+
+    BatchAnalysisFindingKind:
+      type: string
+      description: |
+        How a batch-analysis finding should read to the brewer.
+        - POSITIVE: something went as planned or better — analysis should say what went right, not only what went wrong.
+        - NOTICE: an observation worth knowing, not necessarily a problem.
+        - WARNING: a deviation from target or plan worth acting on next time.
+      enum:
+        - POSITIVE
+        - NOTICE
+        - WARNING
+
+    BatchAnalysisFinding:
+      type: object
+      description: One finding within a batch's AI brew analysis.
+      required:
+        - kind
+        - title
+        - body
+      properties:
+        kind:
+          $ref: '#/components/schemas/BatchAnalysisFindingKind'
+        title:
+          type: string
+          description: Short headline, e.g. "Mash ran under target for the back half of the rest".
+          readOnly: true
+        body:
+          type: string
+          description: What happened and the likely cause, read from the batch's windowed telemetry.
+          readOnly: true
+        suggestion:
+          type: string
+          description: Optional actionable suggestion for next time. Omitted where none applies (e.g. a purely positive finding).
+          readOnly: true
+
+    BatchAnalysis:
+      type: object
+      description: >
+        The AI-generated brew-day analysis for a batch (laitto#114) — generated once,
+        automatically, when the session's brewing finished. Suggestions a brewer weighs, not a
+        verdict; always paired with the batch's own timeline in the UI.
+      required:
+        - findings
+        - generatedAt
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchAnalysisFinding'
+          readOnly: true
+        generatedAt:
+          type: string
+          format: date-time
           readOnly: true
 
     BatchStep:
