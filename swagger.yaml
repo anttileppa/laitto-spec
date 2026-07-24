@@ -3476,9 +3476,12 @@ components:
       type: string
       description: >-
         A batch's own arc, independent of the session's brew day: FERMENTING once the wort is in
-        the fermenter, an optional CONDITIONING hold, PACKAGED, then DONE.
+        the fermenter, FERMENTED when fermentation is complete (FG-stable-assisted, brewer-confirmed),
+        an optional CONDITIONING hold, PACKAGED, then DONE. A batch may go FERMENTED → PACKAGED
+        directly (no conditioning).
       enum:
         - FERMENTING
+        - FERMENTED
         - CONDITIONING
         - PACKAGED
         - DONE
