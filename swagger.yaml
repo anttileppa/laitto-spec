@@ -1365,6 +1365,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/batches/{batchId}/fermentationAnalysis:
+    get:
+      operationId: getBatchFermentationAnalysis
+      summary: Get the AI fermentation analysis for a batch
+      description: >
+        Returns the AI-generated fermentation analysis for this batch (laitto#125), if one has
+        been generated — a small set of findings read from this batch's fermentation gravity and
+        temperature: how it attenuated versus the recipe's target, temperature control against the
+        plan, whether it stalled, and a suggestion for next time where one applies. Generated once,
+        automatically, when the batch finished fermenting (reached FERMENTED); 404 while not yet
+        generated or not available on the brewery's plan. Same shape as the brew-day analysis.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: the batch's fermentation analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchAnalysis"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/batches/{batchId}/notes:
     get:
       operationId: listBatchNotes
