@@ -2836,6 +2836,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/account:
+    delete:
+      operationId: deleteAccount
+      summary: Delete the caller's account
+      description: >-
+        Permanently deletes the authenticated user's Laitto account (their identity-provider
+        user). If the caller is the only member of their brewery, the brewery and everything it
+        owns is deleted too (the same cascade as `deleteCurrentBrewery`). If other members remain,
+        the caller is simply removed from the brewery — its data stays with the remaining members.
+        Irreversible; there is no grace period. Added for GDPR erasure / Google Play account
+        deletion (laitto#137).
+      tags:
+        - Account
+      responses:
+        "204":
+          description: Account deleted
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/brewery:
     get:
       operationId: getCurrentBrewery
