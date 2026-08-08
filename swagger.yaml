@@ -5250,6 +5250,12 @@ components:
             The brewery's default water-addition placement (#66) — how this brewery usually works.
             Seeds waterPlacement on new recipes and imports; never rewrites existing recipes.
             PRE_TREAT when unset.
+        language:
+          type: string
+          description: >-
+            Brewery's language for AI-generated content (BCP-47, e.g. "fi"). The brew and
+            fermentation analyses write their findings in this language. Null or "en" = English
+            (the default).
         brewfatherUserId:
           type: string
           description: >-
