@@ -2067,6 +2067,164 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/recipes/{recipeId}/assistantThread:
+    get:
+      operationId: getRecipeAssistantThread
+      summary: Get the recipe assistant's conversation thread.
+      description: >-
+        Returns this recipe's AI-assistant conversation (laitto#144) — one thread per recipe
+        family (shared across versions, so context survives a version bump from an accepted
+        change), with every message and any proposal it carries. Empty (no messages) if the
+        brewer has never asked the assistant anything for this recipe family yet.
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id (any version in the family resolves to the same thread)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The recipe's assistant thread
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAssistantThread"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipes/{recipeId}/assistantThread/messages:
+    post:
+      operationId: sendRecipeAssistantMessage
+      summary: Send a message to the recipe assistant.
+      description: >-
+        Sends a brewer message on this recipe's assistant thread and returns the assistant's
+        reply — conversational text, and optionally a proposed change (never applied
+        automatically; accept or discard it separately). Synchronous: the model call happens
+        within this request. Rejected with 429 if a fair-use window (5-hour, daily, weekly or
+        monthly) is exceeded.
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeAssistantMessageRequest"
+        required: true
+      responses:
+        "200":
+          description: The assistant's reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAssistantMessage"
+        "429":
+          description: A fair-use window was exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipes/{recipeId}/assistantThread/messages/{messageId}/accept:
+    post:
+      operationId: acceptRecipeAssistantProposal
+      summary: Accept a proposed recipe change.
+      description: >-
+        Applies the message's pending proposal: if the recipe is read-only (already brewed),
+        duplicates it into a new version first (laitto#33's lifecycle model — never mutates a
+        locked recipe), merges the proposed bill/plan changes onto the target version's current
+        bill/plan, and recomputes its stats. Returns the resulting recipe (the new version, or
+        the same recipe if it wasn't locked).
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id the thread belongs to
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          required: true
+          in: path
+          description: assistant message carrying the proposal to accept
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The resulting recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/recipes/{recipeId}/assistantThread/messages/{messageId}/discard:
+    post:
+      operationId: discardRecipeAssistantProposal
+      summary: Discard a proposed recipe change.
+      description: >-
+        Marks the message's pending proposal as discarded. Nothing is applied; the recipe is
+        unchanged.
+      tags:
+        - Recipes
+      parameters:
+        - name: recipeId
+          required: true
+          in: path
+          description: recipe id the thread belongs to
+          schema:
+            type: string
+            format: uuid
+        - name: messageId
+          required: true
+          in: path
+          description: assistant message carrying the proposal to discard
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeAssistantMessage"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/recipeStyles:
     get:
       operationId: listRecipeStyles
@@ -5018,6 +5176,257 @@ components:
           type: integer
           format: int32
           description: Time in minutes (when applicable, e.g. a boil/whirlpool addition).
+
+    RecipeAssistantMessageRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          description: The brewer's message (a question, a request, or a reply to the assistant).
+
+    RecipeAssistantThread:
+      type: object
+      description: >-
+        A recipe's AI-assistant conversation (laitto#144). One thread per recipe family — shared
+        across versions, so context survives an accepted change bumping the version.
+      required:
+        - id
+        - messages
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeAssistantMessage'
+          readOnly: true
+
+    RecipeAssistantMessageRole:
+      type: string
+      enum:
+        - USER
+        - ASSISTANT
+
+    RecipeAssistantMessage:
+      type: object
+      required:
+        - id
+        - role
+        - text
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RecipeAssistantMessageRole'
+        text:
+          type: string
+          description: >-
+            The message text — the brewer's own wording for a USER message, the conversational
+            reply for an ASSISTANT message (present even when a proposal accompanies it).
+        groundedInBatchId:
+          type: string
+          format: uuid
+          description: >-
+            Set on an ASSISTANT message that confidently references a specific past batch of
+            this recipe family (e.g. answering "last batch was too sweet"). Null when the
+            message doesn't reference a batch, or when unsure — see candidateBatchIds.
+        candidateBatchIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: >-
+            Set instead of groundedInBatchId when the assistant isn't confident which batch is
+            meant — the brewer picks one (surfaced as a picker, not free text) rather than the
+            assistant guessing silently.
+        proposal:
+          $ref: '#/components/schemas/RecipeAssistantProposal'
+          description: Present only when this ASSISTANT message proposes a concrete recipe change.
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+
+    RecipeAssistantProposalStatus:
+      type: string
+      enum:
+        - PENDING
+        - ACCEPTED
+        - DISCARDED
+        - SUPERSEDED
+
+    RecipeAssistantProposal:
+      type: object
+      description: >-
+        A concrete, reviewable recipe change the assistant proposed. Never applied automatically
+        — accept or discard it via the message's own endpoints. billChanges/planChanges describe
+        what would change; deltas are the *verified* resulting target changes, computed
+        server-side from the actual bill (never the model's own arithmetic).
+      required:
+        - summary
+        - billChanges
+        - planChanges
+        - deltas
+        - status
+      properties:
+        summary:
+          type: string
+          description: A short, human-readable summary of the proposed change.
+        billChanges:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeAssistantBillChange'
+        planChanges:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeAssistantPlanChange'
+        deltas:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipeAssistantDelta'
+          readOnly: true
+        status:
+          allOf:
+            - $ref: '#/components/schemas/RecipeAssistantProposalStatus'
+          readOnly: true
+        supersedesMessageId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: >-
+            Set when this proposal revises an earlier still-pending one — the backend marks that
+            earlier message's proposal SUPERSEDED in the same step this one is stored.
+
+    RecipeAssistantBillChangeAction:
+      type: string
+      enum:
+        - ADD
+        - REMOVE
+        - MODIFY
+
+    RecipeAssistantBillChangeCategory:
+      type: string
+      enum:
+        - FERMENTABLE
+        - HOP
+        - YEAST
+        - MISC
+
+    RecipeAssistantBillChange:
+      type: object
+      description: >-
+        One line of a proposed bill edit. REMOVE/MODIFY reference an existing row by name (bill
+        rows aren't otherwise addressable in a proposal); ADD/MODIFY carry the row's fields —
+        only the fields relevant to category need be set, mirroring RecipeFermentable/RecipeHop/
+        RecipeYeast/RecipeMisc's own shapes.
+      required:
+        - action
+        - category
+        - name
+      properties:
+        action:
+          $ref: '#/components/schemas/RecipeAssistantBillChangeAction'
+        category:
+          $ref: '#/components/schemas/RecipeAssistantBillChangeCategory'
+        name:
+          type: string
+          description: >-
+            The ingredient name — identifies the row to REMOVE/MODIFY, or names the row being ADDed.
+        catalogueItemId:
+          type: string
+          format: uuid
+          description: Optional provenance link, when the proposed ingredient matches a catalogue item.
+        amount:
+          type: number
+          format: double
+          description: New/added amount (kg for fermentables, g for hops, category-defined unit for yeast/misc).
+        color:
+          type: number
+          format: double
+          description: Fermentable colour in EBC (category FERMENTABLE only).
+        potential:
+          type: number
+          format: double
+          description: Fermentable extract potential (category FERMENTABLE only).
+        fermentableType:
+          $ref: '#/components/schemas/FermentableType'
+        alpha:
+          type: number
+          format: double
+          description: Hop alpha-acid % (category HOP only).
+        hopUse:
+          $ref: '#/components/schemas/HopUse'
+        time:
+          type: integer
+          format: int32
+          description: Hop/misc time in minutes (category HOP or MISC).
+        lab:
+          type: string
+          description: Yeast producer/lab (category YEAST only).
+        attenuation:
+          type: number
+          format: double
+          description: Yeast apparent attenuation % (category YEAST only).
+        miscType:
+          $ref: '#/components/schemas/MiscType'
+        miscUse:
+          $ref: '#/components/schemas/MiscUse'
+        unit:
+          type: string
+          description: Amount unit (category YEAST or MISC).
+
+    RecipeAssistantPlanChangeField:
+      type: string
+      enum:
+        - TARGET_TEMPERATURE
+        - DURATION
+
+    RecipeAssistantPlanChange:
+      type: object
+      description: >-
+        One proposed change to a brew-plan step. TARGET_TEMPERATURE applies to the step's first
+        temperature-bearing control; a step with more than one such control isn't fully
+        addressable in v1.
+      required:
+        - stepId
+        - field
+        - newValue
+      properties:
+        stepId:
+          type: string
+          format: uuid
+          description: The RecipeStageStep being changed.
+        field:
+          $ref: '#/components/schemas/RecipeAssistantPlanChangeField'
+        newValue:
+          type: integer
+          format: int32
+          description: New target temperature (°C) or duration (seconds), per field.
+
+    RecipeAssistantDelta:
+      type: object
+      description: A verified before/after change to one of the recipe's computed targets.
+      required:
+        - key
+        - before
+        - after
+      properties:
+        key:
+          type: string
+          description: 'The target: OG, FG, ABV, IBU or EBC.'
+        before:
+          type: string
+          description: The current value, formatted for display (e.g. "1.052").
+        after:
+          type: string
+          description: The value after this proposal is applied, computed via the same formulas.
 
     IngredientTier:
       type: string
