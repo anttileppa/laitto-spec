@@ -980,9 +980,10 @@ paths:
       summary: List batches across the brewery
       description: >-
         Lists every batch across all of the brewery's sessions — the top-level Batches area
-        ("every beer, across brew days"). Each batch carries its read-only `sessionName` so the
-        list can render the "brewed on …" breadcrumb without fetching each session. Optionally
-        filtered by lifecycle status.
+        ("every beer, across brew days"). Each batch carries its read-only `sessionName` and
+        `recipeName` so the list can render both the "brewed on …" breadcrumb and the recipe
+        label without fetching each session or recipe (#153). Optionally filtered by
+        lifecycle status.
       tags:
         - Batches
       parameters:
@@ -3740,6 +3741,25 @@ components:
         recipeId:
           type: string
           format: uuid
+        recipeName:
+          type: string
+          readOnly: true
+          description: >-
+            Name of the recipe version this batch brews — carried on the batch so list screens
+            (session, brewery-wide batches, AI analysis) can label rows without a recipes fetch.
+            Mirrors `sessionName` above. Clients must not resolve the name by looking `recipeId`
+            up in `listRecipes`: that returns only the latest version per family, so as soon as
+            the recipe gains a version the batch's own version is absent from it and the lookup
+            misses for good (#153).
+        targetOriginalGravity:
+          type: number
+          format: double
+          readOnly: true
+          description: >-
+            Target original gravity (OG) of the recipe version this batch brews, as specific
+            gravity — the brew-day target the measured `originalGravity` is read against. Carried
+            here for the same reason as `recipeName`: it belongs to the batch's own recipe version,
+            which the library listing does not contain (#153).
         brewOrder:
           type: integer
           format: int32
