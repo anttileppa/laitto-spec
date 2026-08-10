@@ -4405,12 +4405,26 @@ components:
 
     SessionChange:
       type: string
-      description: A part of a session that changed, so the client can refetch selectively.
+      description: >
+        A part of a session that changed, so the client can refetch selectively. More than one
+        brewer may work the same session at once (multi-recipe brew days especially), so every
+        mutation of shared session state publishes the parts it touched — otherwise a second
+        brewer acts on a stale view of the same rig (laitto#160).
       enum:
+        # Sensor readings and the temperature history behind them.
         - TEMPERATURES
+        # Which scenarios are active, including a manual force on/off by another brewer.
         - ACTIVE_SCENARIOS
+        # Batch step progress: started, completed, measurements recorded against a step.
         - RECIPE_STEPS
-        - RECIPES
+        # The session's batches — added, removed, status, gravity, packaging.
+        # (Named BATCHES since laitto#160; it was RECIPES, which described neither what
+        # published it nor what clients refetched on it.)
+        - BATCHES
+        # The session entity itself: status, manual temperature overrides, water selection.
+        - SESSION
+        # Notes on a batch — collaboration between brewers, so they must propagate.
+        - BATCH_NOTES
 
     SessionEvent:
       type: object
