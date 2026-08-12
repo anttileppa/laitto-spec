@@ -6051,6 +6051,66 @@ components:
             The rig's typical wort left behind in the kettle (trub/dead space), in litres — the
             mash→brewhouse gap as a volume. Baseline a session's measuredKettleLoss is compared
             against. Brewer-entered; omit when unknown.
+        mashHeatingLimits:
+          $ref: '#/components/schemas/MashHeatingLimits'
+          description: |
+            How hot this rig's hot liquid tank may run while heating the mash. Omit to use the
+            built-in defaults — most rigs never need to touch it. Only has an effect on setups
+            where the HLT is what heats the mash (an HLT thermometer and a HERMS coil); elsewhere
+            the backend does not consult it.
+
+    MashHeatingLimits:
+      type: object
+      description: |
+        Bounds on how far above the mash target a rig's hot liquid tank may run while heating the
+        mash, as a second line of defence against overshoot and against a coil hot enough to
+        denature the mash enzymes.
+
+        The allowed HLT temperature is derived per reading, from the mash's remaining climb:
+
+            headroom = clamp(gain × (target − currentMash), minHeadroom, maxHeadroom)
+            cap      = max( min(target + headroom, ceiling), target + minHeadroom )
+
+        So the tank may run well above target early in a ramp and is reined in as the mash arrives.
+        `minHeadroom` is applied last, after `ceiling`, on purpose: a step targeting the ceiling
+        (a mash-out) would otherwise get a cap at or below the mash itself and never arrive.
+
+        All four values are required together — a partial group is rejected. Omitting the whole
+        object means "this rig has not been tuned", and the backend defaults apply.
+      required:
+        - gain
+        - minHeadroom
+        - maxHeadroom
+        - ceiling
+      properties:
+        gain:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: |
+            How much of the mash's remaining climb becomes HLT headroom. 0.5 means "allow the tank
+            half the distance the mash still has to travel, above target".
+        minHeadroom:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: |
+            Floor on the headroom, in °C. Keeps the coil above the mash — and so still able to
+            transfer heat — while holding a rest. Must stay above zero or a hold stalls.
+        maxHeadroom:
+          type: number
+          format: double
+          description: |
+            Ceiling on the headroom, in °C, however far the mash still has to climb. Caps the
+            overshoot a long ramp can build up. Must be at least minHeadroom.
+        ceiling:
+          type: number
+          format: double
+          description: |
+            Absolute cap on HLT temperature in °C, whatever the mash target is. Unlike the headroom
+            terms this is not relative: it protects the enzymes from a too-hot coil surface, which a
+            target-relative bound cannot do (at a 76 °C mash-out step, target plus any useful
+            headroom is already scorching). Overridden only by the minHeadroom floor above.
 
     DeviceSetupPredictionSetting:
       type: object
