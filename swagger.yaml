@@ -6586,13 +6586,13 @@ components:
         firmwareUpdateAllowed or firmwareUpdateRequested permits it.
       required:
         - version
-        - size
+        - sizeBytes
         - md5
       properties:
         version:
           type: string
           description: Version of the offered release
-        size:
+        sizeBytes:
           type: integer
           format: int64
           description: Image size in bytes, so the controller can check its OTA slot before starting
@@ -6611,7 +6611,7 @@ components:
       required:
         - version
         - model
-        - size
+        - sizeBytes
         - md5
       properties:
         version:
@@ -6619,7 +6619,7 @@ components:
         model:
           type: string
           description: Board model the image is built for (e.g. lc16-v1)
-        size:
+        sizeBytes:
           type: integer
           format: int64
         md5:
