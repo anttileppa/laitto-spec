@@ -3675,10 +3675,21 @@ paths:
       description: >-
         Streams a firmware image to a controller performing an OTA update. The controller only
         calls this after a sync response offered it an update (ControllerSyncResponse.firmwareUpdate)
-        — there is no separate version-check endpoint. The model is in the path so an image is
-        addressed the way it is targeted, but the backend also checks it against the authenticated
-        controller's own model and refuses a mismatch, so a controller cannot fetch another board's
-        image by guessing a URL.
+        — there is no separate version-check endpoint.
+
+
+        Controllers must pass `auto` as the model: the backend resolves it to the model recorded
+        for the calling controller. A controller therefore cannot name another board's model at
+        all, rather than being checked against it, and firmware never has to spell a model
+        identifier the same way the backend does. The path segment is a model rather than a
+        constant so that an operator-facing download of an arbitrary model can be added later
+        without changing the URL shape; no such caller exists yet, so `auto` is the only accepted
+        value. `auto` is consequently reserved and must never be used as a board model id.
+
+
+        Requires a controller token — the tokenless legacy sync path (while
+        laitto.controller-auth.required is false) has no controller record to resolve `auto`
+        against.
       tags:
         - Firmware
       security:
@@ -3687,9 +3698,12 @@ paths:
         - name: model
           required: true
           in: path
-          description: Board model the image is built for (e.g. lc16-v1)
+          description: >-
+            Must be `auto` — the model recorded for the calling controller. Reserved as a model id.
           schema:
             type: string
+            enum:
+              - auto
         - name: version
           required: true
           in: path
@@ -3705,7 +3719,15 @@ paths:
                 type: string
                 format: binary
         "404":
-          description: No such release, or it does not target the calling controller's model
+          description: No such release for the calling controller's model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            The calling controller has no recorded board model, so `auto` cannot be resolved. It
+            reports its model on every sync, so this clears itself after one sync cycle.
           content:
             application/json:
               schema:
@@ -6518,6 +6540,14 @@ components:
           description: >
             Firmware version the controller is running. Cheap to send every sync; lets the
             backend detect an OTA/version change and refresh the cached channel inventory.
+        model:
+          type: string
+          description: >
+            Board model the controller selected from its serial prefix (e.g. lc16-v1). Firmware
+            has always sent this; declaring it lets the backend record it, which is what makes
+            per-model firmware targeting and the `auto` model in the download path work. Sent
+            every sync, like firmwareVersion, so an already-registered controller heals without
+            re-onboarding and a board swap is picked up.
         channels:
           type: array
           description: >
