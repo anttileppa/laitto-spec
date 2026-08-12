@@ -3613,6 +3613,111 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/firmware:
+    post:
+      operationId: publishFirmware
+      summary: Publish a firmware release
+      description: >-
+        Publishes a firmware image for a board model, called by the firmware repository's release
+        workflow (laitto#157). Authenticated with a short-lived GitHub Actions OIDC token rather
+        than a stored credential; the backend additionally requires the token's repository claim to
+        be the firmware repository and its ref to be a tag, so this authorises a tagged CI build
+        rather than whoever holds a secret. Controllers never call this.
+      tags:
+        - Firmware
+      security:
+        - githubOidc: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - version
+                - model
+                - binary
+              properties:
+                version:
+                  type: string
+                  description: Release version, as tagged (x.y.z)
+                model:
+                  type: string
+                  description: Board model the image is built for (e.g. lc16-v1)
+                binary:
+                  type: string
+                  format: binary
+                  description: The firmware image
+      responses:
+        "200":
+          description: The published release
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FirmwareRelease"
+        "409":
+          description: That model already has a release with this version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/firmware/{model}/{version}/binary:
+    get:
+      operationId: downloadFirmware
+      summary: Download a firmware image
+      description: >-
+        Streams a firmware image to a controller performing an OTA update. The controller only
+        calls this after a sync response offered it an update (ControllerSyncResponse.firmwareUpdate)
+        — there is no separate version-check endpoint. The model is in the path so an image is
+        addressed the way it is targeted, but the backend also checks it against the authenticated
+        controller's own model and refuses a mismatch, so a controller cannot fetch another board's
+        image by guessing a URL.
+      tags:
+        - Firmware
+      security:
+        - controllerAuth: []
+      parameters:
+        - name: model
+          required: true
+          in: path
+          description: Board model the image is built for (e.g. lc16-v1)
+          schema:
+            type: string
+        - name: version
+          required: true
+          in: path
+          description: Release version to download
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The firmware image
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No such release, or it does not target the calling controller's model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3625,6 +3730,16 @@ components:
       description: >-
         Opaque per-controller bearer token issued by POST /v1/controllers/register. Not a
         Keycloak JWT; the backend validates it against the controller's stored token hash.
+    githubOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Short-lived GitHub Actions OIDC token (issuer token.actions.githubusercontent.com), minted
+        by the firmware release workflow via `permissions: id-token: write`. The backend validates
+        it as a separate OIDC tenant alongside Keycloak and requires the repository and ref claims
+        to identify a tagged build of the firmware repository. Nothing is stored on either side, so
+        there is no publish credential to rotate or leak.
 
   schemas:
 
@@ -6457,6 +6572,63 @@ components:
             One-shot on-demand update delivery (#17): true when a brewer requested an update via
             POST /v1/controllers/{controllerId}/firmware-update since the last sync. The firmware
             should check for and apply an update immediately. Cleared server-side once delivered.
+        firmwareUpdate:
+          $ref: '#/components/schemas/FirmwareUpdate'
+
+    FirmwareUpdate:
+      type: object
+      description: >-
+        A firmware update available to the controller (laitto#157). Resolved server-side from the
+        controller's model — recorded at registration, not self-asserted — and the firmwareVersion
+        it reports on every sync, so there is no separate version-check endpoint and no version
+        arithmetic on the device. Omitted when the controller is already current. The controller
+        fetches it from GET /v1/firmware/{model}/{version}/binary, but only once
+        firmwareUpdateAllowed or firmwareUpdateRequested permits it.
+      required:
+        - version
+        - size
+        - md5
+      properties:
+        version:
+          type: string
+          description: Version of the offered release
+        size:
+          type: integer
+          format: int64
+          description: Image size in bytes, so the controller can check its OTA slot before starting
+        md5:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+          description: >-
+            MD5 of the image, passed to the ESP32's Update.setMD5() so a truncated or corrupt
+            download is rejected instead of flashed. An integrity check against corruption, not
+            authenticity — TLS and the controller token provide that, and image signing is a
+            separate topic.
+
+    FirmwareRelease:
+      type: object
+      description: A published firmware image, without its bytes.
+      required:
+        - version
+        - model
+        - size
+        - md5
+      properties:
+        version:
+          type: string
+        model:
+          type: string
+          description: Board model the image is built for (e.g. lc16-v1)
+        size:
+          type: integer
+          format: int64
+        md5:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+        publishedAt:
+          type: string
+          format: date-time
+          readOnly: true
 
     ControllerSyncInstruction:
       type: object
