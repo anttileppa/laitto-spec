@@ -6808,26 +6808,44 @@ components:
         - OUT
         - IN
 
+    ChannelPolarity:
+      type: string
+      description: >
+        Which logic level drives a terminal's load. ACTIVE_LOW terminals idle high, which is why
+        they need a pull-up to stay released while the GPIO is high-Z during boot; ACTIVE_HIGH
+        terminals need the opposite. Absent on input terminals.
+      enum:
+        - ACTIVE_HIGH
+        - ACTIVE_LOW
+
     ControllerChannel:
       type: object
       description: >
         One physical terminal the controller reports as part of its channel inventory, so the
-        UI can offer only real terminals (filtered by the modes they support) and validate that a
-        replacement controller has the terminals a device setup needs.
+        UI can offer only real terminals (filtered by the modes they support), validate that a
+        replacement controller has the terminals a device setup needs, and show the brewer what
+        goes on which terminal (#158).
+
+        Everything here comes from the board descriptor compiled into the firmware, which stays
+        the single source of truth — the platform stores what the controller reports and keeps no
+        board catalogue of its own. Every field beyond terminal + supportedModes is optional:
+        firmware predating a field simply omits it, and consumers fall back to showing less
+        rather than breaking.
       required:
         - terminal
         - supportedModes
       properties:
         terminal:
           type: string
-          description: Stable terminal id (e.g. relay-12, ssr)
+          description: Stable terminal id (e.g. relay-12, ssr). Stable across board models, so a
+            device setup survives a controller swap; the GPIO behind it is what differs.
         supportedModes:
           type: array
           description: >
             Driven control modes this terminal can physically do — a subset of ON_OFF,
             TIME_PROPORTIONAL, MODULATING. A device bound to this terminal must pick a controlMode
             from this list. MANUAL is a device-level choice (the device is unbound from any
-            terminal) and is never listed here.
+            terminal) and is never listed here. Empty for input terminals, which are not driven.
           items:
             $ref: '#/components/schemas/ControlMode'
         direction:
@@ -6835,6 +6853,32 @@ components:
         rating:
           type: string
           description: Advisory current/voltage rating from the board descriptor (e.g. 16A), if any
+        gpio:
+          type: integer
+          format: int32
+          description: The MCU pin this terminal is wired to on this board model.
+        polarity:
+          $ref: '#/components/schemas/ChannelPolarity'
+        # The mode this terminal drives in until a device setup binds a device to it with an
+        # explicit controlMode — the board's pre-config fallback, not a constraint. Kept as a bare
+        # $ref with no sibling description: a sibling here makes openapi-backend's dereferencer
+        # emit an invalid ajv schema ("enum must be array"), which takes the whole testbed down.
+        defaultMode:
+          $ref: '#/components/schemas/ControlMode'
+        wiring:
+          type: string
+          description: >
+            Short installer hint for this line from the board descriptor, e.g. "10k pull-up to
+            3V3" or "10k pull-DOWN to GND — required". Safety content: the pull-down on an
+            active-high SSR line is what stops the element firing while the GPIO floats during
+            boot. Boards that fit their own passives report none.
+          example: 10k pull-DOWN to GND — required
+        type:
+          type: string
+          description: >
+            What a non-driven terminal is, e.g. ds18b20-1wire for the temperature sensor bus.
+            Absent on output terminals, which are described by supportedModes instead.
+          example: ds18b20-1wire
 
     Controller:
       type: object
