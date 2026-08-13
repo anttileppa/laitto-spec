@@ -6859,11 +6859,12 @@ components:
           description: The MCU pin this terminal is wired to on this board model.
         polarity:
           $ref: '#/components/schemas/ChannelPolarity'
+        # The mode this terminal drives in until a device setup binds a device to it with an
+        # explicit controlMode — the board's pre-config fallback, not a constraint. Kept as a bare
+        # $ref with no sibling description: a sibling here makes openapi-backend's dereferencer
+        # emit an invalid ajv schema ("enum must be array"), which takes the whole testbed down.
         defaultMode:
           $ref: '#/components/schemas/ControlMode'
-          description: >
-            The mode this terminal drives in until a device setup binds a device to it with an
-            explicit controlMode — the board's pre-config fallback, not a constraint.
         wiring:
           type: string
           description: >
