@@ -3668,6 +3668,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/boardDescriptors:
+    post:
+      operationId: publishBoardDescriptors
+      summary: Publish the board descriptors a firmware version was built with
+      description: >-
+        Publishes the terminal layout of every board model a firmware version knows about
+        (laitto#158), called by the firmware repository's release workflow with the same
+        short-lived GitHub Actions OIDC token as publishFirmware. Controllers never call this.
+
+
+        Separate from publishFirmware because the two have different cardinality: one release
+        image contains the descriptors for *every* model (they are compiled in and selected at
+        boot), while only some models are offered for OTA — publishing descriptors alongside a
+        binary would silently omit the models we deliberately do not distribute, which today
+        includes the bench devkit, the one board whose lines actually carry wiring hints.
+
+
+        Keyed by version so the catalogue can never describe a board differently from the
+        firmware a controller is actually running: the backend resolves a controller's terminals
+        by the (model, firmwareVersion) it reports on every sync. A wiring guide that drifts from
+        the GPIOs the firmware really drives would be worse than no guide at all.
+      tags:
+        - Firmware
+      security:
+        - githubOidc: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardDescriptorPublishRequest"
+      responses:
+        "200":
+          description: The published descriptors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BoardDescriptor"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/firmware/{model}/{version}/binary:
     get:
       operationId: downloadFirmware
@@ -6551,9 +6598,13 @@ components:
         channels:
           type: array
           description: >
-            The controller's terminal inventory. Normally omitted; sent on the first sync after
-            boot or a firmware-version change (it is static between OTA updates), so the hot path
-            stays small.
+            The controller's own terminal inventory — a fallback, not the normal path (#158).
+            Terminal layouts come from the descriptors the firmware release workflow publishes
+            per version, so a controller running a published version need not send this at all.
+            It stays for boards the catalogue cannot describe: dev and USB-flashed builds, and
+            hand-modified pin maps. When present it wins over the catalogue, since a controller is
+            authoritative about itself. Sent on the first sync after boot only; it is static
+            between OTA updates, so the hot path stays small.
           items:
             $ref: '#/components/schemas/ControllerChannel'
         logs:
@@ -6818,19 +6869,77 @@ components:
         - ACTIVE_HIGH
         - ACTIVE_LOW
 
+    BoardTerminalLayout:
+      type: object
+      description: >
+        One board model's terminal layout, as published by the firmware release workflow (#158).
+        Terminals are ControllerChannels because that is exactly what they describe — the same
+        shape the backend serves back on Controller.channels, so the catalogue can be read
+        straight through with no second vocabulary to keep in step.
+      required:
+        - model
+        - terminals
+      properties:
+        model:
+          type: string
+          description: Board model id (e.g. lc16-v1), matching what a controller reports as its model
+        name:
+          type: string
+          description: Human-readable board name (e.g. "Laitto Controller C16 (v1)")
+        serialPrefixes:
+          type: array
+          description: Serial prefixes that select this descriptor at boot
+          items:
+            type: string
+        terminals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ControllerChannel'
+
+    BoardDescriptor:
+      allOf:
+        - $ref: '#/components/schemas/BoardTerminalLayout'
+        - type: object
+          properties:
+            firmwareVersion:
+              type: string
+              readOnly: true
+              description: The firmware version this layout was published from
+
+    BoardDescriptorPublishRequest:
+      type: object
+      required:
+        - version
+        - descriptors
+      properties:
+        version:
+          type: string
+          description: Release version, as tagged (x.y.z) — the same version publishFirmware is called with
+        descriptors:
+          type: array
+          description: Every board model this firmware version knows about
+          items:
+            $ref: '#/components/schemas/BoardTerminalLayout'
+
     ControllerChannel:
       type: object
       description: >
-        One physical terminal the controller reports as part of its channel inventory, so the
-        UI can offer only real terminals (filtered by the modes they support), validate that a
-        replacement controller has the terminals a device setup needs, and show the brewer what
-        goes on which terminal (#158).
+        One physical terminal of a controller, so the UI can offer only real terminals (filtered
+        by the modes they support), validate that a replacement controller has the terminals a
+        device setup needs, and show the brewer what goes on which terminal (#158).
 
-        Everything here comes from the board descriptor compiled into the firmware, which stays
-        the single source of truth — the platform stores what the controller reports and keeps no
-        board catalogue of its own. Every field beyond terminal + supportedModes is optional:
-        firmware predating a field simply omits it, and consumers fall back to showing less
-        rather than breaking.
+        The board descriptor compiled into the firmware is the single source of truth for this,
+        but it does not travel per controller: the firmware release workflow publishes each
+        version's descriptors once (publishBoardDescriptors), and the backend resolves a
+        controller's terminals from the (model, firmwareVersion) it already reports on every sync.
+        A controller therefore does not pay for static data on every boot, and the wiring guide
+        works before a newly-wired rig has ever been powered on — which is when it is most needed.
+
+        A controller may still report its own inventory on ControllerSyncRequest.channels, and
+        that report wins when it is present: it covers boards whose descriptors were never
+        published (dev and USB-flashed builds, hand-modified pin maps). Such a report carries only
+        terminal + direction + supportedModes, so every other field here is optional and consumers
+        must fall back to showing less rather than breaking.
       required:
         - terminal
         - supportedModes
