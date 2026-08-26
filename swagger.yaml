@@ -2448,6 +2448,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/externalUnits/available:
+    get:
+      operationId: listAvailableExternalUnits
+      summary: Discover the connected source's external units
+      description: >-
+        The external brewing units visible on the brewery's connected telemetry source — RAPT
+        BrewZillas today (#182). Pulled live, and like the hydrometer equivalent it doubles as a
+        connection test: it authenticates against the source. Returns an empty array when no source
+        is connected; a source auth/reachability failure is an error.
+
+
+        Discovery only, deliberately: a unit cannot yet be registered, because Laitto cannot yet read
+        a BrewZilla's brew day (#173). It is listed so that a brewer who owns a BrewZilla and no Pill
+        sees that Laitto found their rig, instead of being told nothing was found.
+      tags: [Sources]
+      responses:
+        "200":
+          description: The source's available external units
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableExternalUnit"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/hydrometers:
     get:
       operationId: listHydrometers
@@ -4421,6 +4452,30 @@ components:
           description: >-
             The batch this hydrometer is currently tracking. Set to assign it to a fermenting batch,
             clear (empty/null) to free it. Omit on update to leave the assignment unchanged.
+
+    AvailableExternalUnit:
+      type: object
+      description: >-
+        An external brewing unit discovered on the brewery's connected telemetry source (#182) — a
+        RAPT BrewZilla today. Read-only: there is no registration for these yet, so unlike
+        `AvailableHydrometer` this carries no `registered` flag. One is added when Laitto can act on
+        a unit rather than merely see it (#173).
+      required:
+        - externalDeviceId
+        - name
+      properties:
+        externalDeviceId:
+          type: string
+          description: The unit's id in the source system.
+        name:
+          type: string
+          description: The unit's name in the source system, as the brewer named it there.
+        model:
+          type: string
+          description: Model as reported by the source, e.g. "Gen 4.1". Absent when the source omits it.
+        firmware:
+          type: string
+          description: Firmware version as reported by the source. Absent when the source omits it.
 
     AvailableHydrometer:
       type: object
