@@ -3184,10 +3184,17 @@ paths:
                 $ref: "#/components/schemas/Error"
     post:
       operationId: createBreweryMember
-      summary: Add a member to the current brewery
+      deprecated: true
+      summary: Add a member to the current brewery (deprecated)
       description: >-
         Adds an existing Laitto account to the current brewery by email. The account must already
         exist; it is added to the brewery's Keycloak organization and gains access on next login.
+
+        **Deprecated in favour of POST /v1/brewery/invitations.** Requiring the account to exist
+        first is a dead end: the only way to get one is the register page, which asks for a brewery
+        name — so the person you are adding creates their own brewery before you can add them.
+        Invitations work whether or not the address has an account, and land the invitee in *this*
+        brewery. Kept until both frontends have moved over.
       tags:
         - Breweries
       requestBody:
@@ -3228,6 +3235,209 @@ paths:
       responses:
         "204":
           description: Member removed
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewery/invitations:
+    get:
+      operationId: listBreweryInvitations
+      summary: List pending invitations
+      description: >-
+        Lists the invitations of the current brewery that have not yet been accepted or revoked.
+        Expired invitations are still listed so the brewer can see why nothing happened and resend.
+      tags:
+        - Breweries
+      responses:
+        "200":
+          description: List of invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createBreweryInvitation
+      summary: Invite someone to the current brewery
+      description: >-
+        Invites an email address to the current brewery and sends the invitation mail. The address
+        does not need a Laitto account — that is the point: the invitee registers (or signs in) from
+        the emailed link and lands in this brewery rather than creating one of their own.
+
+        Responds 409 when the address is already a member, already has a pending invitation, or
+        already belongs to another brewery. A brewer belongs to one brewery at a time, and refusing
+        here means the inviter finds out immediately rather than after telling a colleague to expect
+        a mail. The same rule is re-checked on accept, because the invitee can found their own
+        brewery in between.
+      tags:
+        - Breweries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationCreate"
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: The created invitation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewery/invitations/{invitationId}:
+    delete:
+      operationId: deleteBreweryInvitation
+      summary: Revoke an invitation
+      description: >-
+        Revokes a pending invitation. The emailed link stops working immediately.
+      tags:
+        - Breweries
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          description: Id of the invitation to revoke
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Invitation revoked
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/brewery/invitations/{invitationId}/resend:
+    post:
+      operationId: resendBreweryInvitation
+      summary: Resend an invitation
+      description: >-
+        Sends the invitation again on the same invitation record, with a freshly issued token and a
+        fresh expiry. This **invalidates the previously emailed link**, which is the intent rather
+        than a side effect: only one live link per invitation ever exists, so a forwarded or leaked
+        older mail stops working. Reusing the record also keeps `invitedByName` and `createdAt`
+        honest — resending is not a new invitation.
+      tags:
+        - Breweries
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          description: Id of the invitation to resend
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The invitation, with its refreshed expiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/invitations/{token}:
+    get:
+      operationId: findInvitation
+      summary: Look up an invitation by its token
+      description: >-
+        Returns what the invitation landing page needs to say who is inviting whom, before the
+        visitor has signed in. Unauthenticated by design: the emailed token is the credential, the
+        same way the controller claim token is on /v1/controllers/register. Being asked to create an
+        account before being told which brewery you are joining is the experience this avoids.
+
+        Deliberately narrow — brewery name, inviter display name, the invited address and the
+        expiry. Nothing about the brewery's data, and no member list. Responds 404 when the token is
+        unknown, already used, revoked or expired; the page cannot distinguish those cases and
+        should not try to.
+      tags:
+        - Invitations
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: The invitation token from the emailed link
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The invitation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationPreview"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Accept an invitation
+      description: >-
+        Joins the authenticated user to the inviting brewery and marks the invitation accepted.
+        Requires authentication: possession of the token identifies the *invitation*, not the
+        person.
+
+        The authenticated account's email must equal the invited address (case-insensitively),
+        otherwise 403. Without that rule an already-onboarded brewer could accept an invitation
+        addressed to someone else, and membership would stop being traceable to a decision the
+        inviter actually made. Note that Keycloak prefills but does not lock the address on the
+        register page, so an invitee who edits it registers under a different address and lands
+        here with a 403 — the client needs to say so plainly rather than showing a generic error.
+
+        Responds 409 when the caller already belongs to a brewery (the one-brewery-per-user rule,
+        re-checked here because they can found their own between the mail going out and this call),
+        and 404 when the token is unknown, already used, revoked or expired.
+
+        On success the caller gains an organization membership, so their next access token carries
+        the organization claim — clients must refresh the token before making brewery-scoped calls.
+      tags:
+        - Invitations
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: The invitation token from the emailed link
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The brewery the caller just joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Brewery"
         default:
           description: Error
           content:
@@ -5953,12 +6163,96 @@ components:
 
     BreweryMemberInvite:
       type: object
+      deprecated: true
+      description: Payload of the deprecated createBreweryMember. Use InvitationCreate instead.
       required:
         - email
       properties:
         email:
           type: string
           description: Email of the existing Laitto account to add to the brewery
+
+    InvitationStatus:
+      type: string
+      description: >-
+        Lifecycle of an invitation. Expiry is derived from `expiresAt` rather than being a status of
+        its own, so a resend can revive a lapsed invitation without a state transition.
+      enum:
+        - PENDING
+        - ACCEPTED
+        - REVOKED
+
+    Invitation:
+      type: object
+      description: An invitation to join a brewery, as seen by the brewery's own members.
+      required:
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          description: The invited email address. Stored and matched lowercased.
+        status:
+          $ref: "#/components/schemas/InvitationStatus"
+        invitedByName:
+          type: string
+          description: Display name of the member who sent it. Survives a resend.
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          description: When the invitation was first created. A resend does not move this.
+          readOnly: true
+        expiresAt:
+          type: string
+          format: date-time
+          description: >-
+            When the current link stops working. Set to seven days ahead on creation and on each
+            resend. Clients show the remaining window so a lapsed invitation reads as lapsed rather
+            than as one that silently failed.
+          readOnly: true
+
+    InvitationCreate:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          description: >-
+            Address to invite. It does not need an existing Laitto account. It must not already be a
+            member, already invited, or already belong to another brewery.
+
+    InvitationPreview:
+      type: object
+      description: >-
+        What an invitation link's landing page may show before the visitor signs in. Deliberately
+        narrow: enough to say who is inviting whom, and nothing about the brewery's data.
+      required:
+        - breweryName
+        - email
+      properties:
+        breweryName:
+          type: string
+          description: Name of the inviting brewery
+          readOnly: true
+        invitedByName:
+          type: string
+          description: Display name of the member who sent it
+          readOnly: true
+        email:
+          type: string
+          description: >-
+            The invited address, so the page can show which mailbox this link belongs to — and so a
+            visitor signed in as someone else can be told what went wrong.
+          readOnly: true
+        expiresAt:
+          type: string
+          format: date-time
+          readOnly: true
 
     RecipeSource:
       type: string
