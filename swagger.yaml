@@ -4387,8 +4387,10 @@ components:
           format: date-time
           description: >-
             When the yeast was pitched — the start of the fermentation clock. Defaulted to the moment
-            the batch's status becomes FERMENTING, and editable afterwards for a correction (a batch
-            created directly as FERMENTING may have been pitched hours earlier). Omit until pitched.
+            the batch's brew day finishes (its last step completes: the wort is in the fermenter and
+            the yeast with it), and editable afterwards for a correction. A batch with no steps — one
+            brewed elsewhere and only fermented here — never gets the default, so its client should
+            offer to set it. Omit until pitched.
 
             Note: `gravityVelocity` and `fgStable` do NOT window from this — both use trailing windows
             over reading timestamps. An earlier version of this description claimed otherwise.
