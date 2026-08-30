@@ -5243,6 +5243,16 @@ components:
           type: integer
           format: int32
           readOnly: true
+        stepIndex:
+          description: |
+            Position of this step *within its stage* (ascending), derived from the recipe. Together
+            with stageOrderIndex this is the only correct sort: a follower must read as the sequence
+            the brewer performs, and neither `time` nor insertion order reproduces it. Instantaneous
+            steps (an addition, a measurement) all share `time = 0`, so sorting by time sinks them
+            below the timed rests they precede. Immutable during the session.
+          type: integer
+          format: int32
+          readOnly: true
         completion:
           $ref: '#/components/schemas/StepCompletion'
           description: |
