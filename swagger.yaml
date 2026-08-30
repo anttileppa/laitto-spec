@@ -1181,6 +1181,65 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/sessions/{sessionId}/batches/{batchId}/clock:
+    put:
+      operationId: updateBatchClock
+      summary: Correct a batch's brew-day clock
+      description: >
+        Sets the batch's brew-day clock to an absolute reading — for the brewer who forgot to pause
+        the timer over a break, or forgot to start it at all. The clock otherwise runs server-side and
+        is not writable through `updateBatch` (see `Batch.elapsedTime`).
+
+
+        Absolute rather than a delta so the call is idempotent: at a rig, a retry over patchy wifi is
+        the normal case, and a repeated relative adjustment would apply twice.
+
+
+        Pausing is unaffected — a running timer keeps running from the corrected reading, pivoting on
+        the server's clock.
+
+
+        Rejected (400) when the reading is negative, would rewind past the last recorded step mark
+        (a completed step cannot end up in the future), or exceeds 24 hours. Rejected (409) when the
+        batch is PACKAGED or DONE: by then the clock is history.
+      tags:
+        - Sessions
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          description: session id
+          schema:
+            type: string
+            format: uuid
+        - name: batchId
+          required: true
+          in: path
+          description: batch id
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchClock'
+        description: The clock reading to set
+        required: true
+      responses:
+        "200":
+          description: The batch, with the corrected clock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Batch"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/sessions/{sessionId}/batches/{batchId}/fermentationHistory:
     get:
       operationId: listBatchFermentationHistory
@@ -4144,7 +4203,6 @@ components:
         - recipeId
         - brewOrder
         - status
-        - elapsedTime
         - paused
       properties:
         id:
@@ -4194,8 +4252,16 @@ components:
         elapsedTime:
           type: integer
           format: int32
+          readOnly: true
           description: |
-            The current time in seconds since the batch was started. This value progresses when the batch is not paused.
+            The brew-day clock in seconds: time accumulated while the batch has not been paused.
+            Progresses server-side whenever `paused` is false, so a read is live at fetch.
+
+            Read-only on this resource. It was previously required and writable, but silently
+            discarded on write (#198) — and honouring it here could not work: clients PUT the whole
+            batch, so any unrelated edit would carry an `elapsedTime` read moments earlier and rewind
+            a running brew by however long the user took to type. Correct the clock with
+            `updateBatchClock` instead, which is explicit and idempotent.
         paused:
           type: boolean
           description: |
@@ -4320,8 +4386,12 @@ components:
           type: string
           format: date-time
           description: >-
-            When the yeast was pitched — the start of the fermentation clock, used for
-            days-fermenting and gravity-velocity windows. Omit until pitched.
+            When the yeast was pitched — the start of the fermentation clock. Defaulted to the moment
+            the batch's status becomes FERMENTING, and editable afterwards for a correction (a batch
+            created directly as FERMENTING may have been pitched hours earlier). Omit until pitched.
+
+            Note: `gravityVelocity` and `fgStable` do NOT window from this — both use trailing windows
+            over reading timestamps. An earlier version of this description claimed otherwise.
         currentGravity:
           type: number
           format: double
@@ -4944,12 +5014,16 @@ components:
         - TARGET_TEMPERATURE_CHANGED: a resolved target temperature changed (see targetType + value fields).
         - MANUAL_TEMPERATURE_SET: the brewer set or cleared a manual temperature override.
         - RECIPE_STEP_ADVANCED: the session moved to a new recipe step (see recipeStep fields).
+        - CLOCK_ADJUSTED: a brewer corrected the brew-day clock (previousValue/value carry the
+          reading in seconds, before and after). Recorded because analysis reads plan against
+          actual: without it, a corrected mash length has no explanation in the record.
       enum:
         - SCENARIO_ACTIVATED
         - SCENARIO_DEACTIVATED
         - TARGET_TEMPERATURE_CHANGED
         - MANUAL_TEMPERATURE_SET
         - RECIPE_STEP_ADVANCED
+        - CLOCK_ADJUSTED
 
     BrewEventTargetType:
       type: string
@@ -4991,12 +5065,16 @@ components:
         previousValue:
           type: number
           format: double
-          description: Previous numeric value (e.g. previous target/manual temperature in °C), when applicable.
+          description: >-
+            Previous numeric value (e.g. previous target/manual temperature in °C, or the clock
+            reading in seconds before a CLOCK_ADJUSTED), when applicable.
           readOnly: true
         value:
           type: number
           format: double
-          description: New numeric value (e.g. new target/manual temperature in °C), when applicable.
+          description: >-
+            New numeric value (e.g. new target/manual temperature in °C, or the clock reading in
+            seconds after a CLOCK_ADJUSTED), when applicable.
           readOnly: true
         previousText:
           type: string
@@ -5025,6 +5103,21 @@ components:
           format: uuid
           description: Previous recipe step, for RECIPE_STEP_ADVANCED.
           readOnly: true
+
+    BatchClock:
+      type: object
+      description: >-
+        A corrected reading for a batch's brew-day clock. Absolute, so the request is idempotent.
+      required:
+        - elapsedTime
+      properties:
+        elapsedTime:
+          type: integer
+          format: int32
+          minimum: 0
+          description: >-
+            What the clock should read, in seconds. Must not be below the last recorded step mark on
+            the batch, and must not exceed 24 hours.
 
     BatchAnalysisFindingKind:
       type: string
