@@ -2,6 +2,45 @@ openapi: 3.1.0
 info:
   version: 1.0.0
   title: Laitto HERMS API
+  description: >-
+    ## Minimum supported app version
+
+
+    Every response from this API carries the mobile app's version floor as headers —
+    `Laitto-Min-App-Version-Android` and `Laitto-Min-App-Version-Ios`. They are declared under
+    `components/headers` rather than listed on each operation, because they are cross-cutting:
+    they are present on **every** response, including errors, and are not part of any one
+    operation's contract.
+
+
+    **Why headers rather than a body field.** The client this exists to reach is, by definition,
+    one we cannot assume parses current responses correctly — that is the whole premise of a
+    version floor. A header survives contract drift that a stale generated client may mishandle.
+    For the same reason there is no version-check *endpoint*: an old client cannot be relied on to
+    call one, so the requirement rides responses it already provokes.
+
+
+    **Both platforms are sent on every response, and the client picks its own.** The server does
+    not need to know which platform is asking, so no request header identifies the client, nothing
+    varies by request, and responses stay cacheable. Reporting what a client actually runs is a
+    separate concern with its own privacy consequences — see laitto#212 — and is deliberately not
+    started here.
+
+
+    **A missing header means no floor is known, and the client must NOT block.** Headers can be
+    stripped by an intermediary, and a backend that failed to resolve its configuration must not be
+    able to brick every installed app at once. Absent is not the same as "below the floor". Only a
+    header that is present, parses, and is greater than the running version blocks the app.
+
+
+    Comparison is semantic-version precedence, and the floor is **inclusive**: a version equal to
+    or above it is allowed, strictly below it is blocked.
+
+
+    The floor is a semantic judgement the server holds and can change after the fact, because a
+    version is usually only discovered to be unusable after it ships. It is not necessarily a bug:
+    a spec change an old generated client cannot parse, a security issue, or a legal obligation all
+    raise it. Design: `docs/mobile-update-enforcement-design.md` in the `laitto` umbrella repo.
 security:
   - bearerAuth: []
 paths:
@@ -4088,6 +4127,26 @@ paths:
 
 
 components:
+
+  headers:
+    # Cross-cutting: present on EVERY response, including errors, so they are defined once here
+    # rather than repeated on ~100 operations. See the `info.description` for the full contract —
+    # in particular that an absent header means "no floor known" and must not block the app.
+    MinAppVersionAndroid:
+      description: >-
+        Lowest Android app version still permitted to operate. A client running strictly below this
+        must block itself and send the brewer to the store; equal or above is allowed. Absent means
+        no floor is known — the client must not block. No `X-` prefix, per RFC 6648.
+      schema:
+        $ref: "#/components/schemas/AppVersion"
+    MinAppVersionIos:
+      description: >-
+        Lowest iOS app version still permitted to operate. Same semantics as the Android header.
+        iOS has no in-app update API, so the app renders its own blocking screen and deep-links the
+        App Store; the floor itself is platform-independent in shape.
+      schema:
+        $ref: "#/components/schemas/AppVersion"
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -7485,6 +7544,20 @@ components:
           description: The controller's last reported terminal inventory
           items:
             $ref: '#/components/schemas/ControllerChannel'
+
+    AppVersion:
+      type: string
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+      example: "1.3.0"
+      description: >-
+        A mobile app version, as `major.minor.patch`. Matches `expo.version`, which is what the
+        stores show and what the app can read about itself — deliberately not the build number,
+        which differs per platform and per build of the same release.
+
+
+        Compared by semantic-version precedence, numerically per component, so 1.10.0 is above
+        1.9.0. Pre-release and build suffixes are not accepted: a floor has to be unambiguous to a
+        client that may already be mishandling everything else.
 
     Error:
       type: object
