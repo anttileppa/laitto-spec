@@ -4087,6 +4087,98 @@ paths:
                 $ref: "#/components/schemas/Error"
 
 
+  /v1/system/appVersions:
+    get:
+      operationId: getAppVersions
+      summary: Get mobile app version requirements
+      description: >-
+        The mobile app's version floor and current release, per platform. The app reads this once at
+        start and then every 15 minutes.
+
+
+        **Unauthenticated by design.** The blocking screen has to work from any app state including
+        signed out, so this cannot sit behind a token. It exposes four version numbers and two
+        dates, and nothing about any brewery or person. Unlike the invitation lookup and controller
+        registration, which are also open but treat a token as the credential, this has no
+        credential at all.
+
+
+        **A client must not block on a failure.** If the call fails, the body does not parse, or
+        `minimumSupportedVersion` is absent, no floor is known and the app runs normally. A backend
+        that cannot answer must not be able to brick every installed app at once — absent is not the
+        same as "below the floor". Only a floor that is present, parses, and is strictly above the
+        running version blocks.
+
+
+        The nudge is the same in reverse: no `currentVersion`, or no `currentVersionReleasedAt`,
+        means no nudge. The floor fails towards blocking because it guards against a dangerous
+        version; this endpoint fails towards running because it guards against us.
+
+
+        Design: `docs/mobile-update-enforcement-design.md` in the `laitto` umbrella repo.
+      tags:
+        - System
+      security: []
+      responses:
+        "200":
+          description: Version requirements for every supported platform
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppVersions"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: updateAppVersions
+      summary: Update mobile app version requirements
+      description: >-
+        Replaces the version requirements for both platforms. **Requires a platform-admin role** —
+        Laitto staff, not a brewery member, and a different axis from a member's permissions within
+        their own brewery.
+
+
+        Raising `minimumSupportedVersion` takes effect within one poll interval, with no deploy and
+        no restart. That is the whole point of the values living in the database rather than in
+        configuration: the moment we most need to raise a floor is an incident, which is the worst
+        possible time to be editing a ConfigMap or writing SQL.
+
+
+        `currentVersionReleasedAt` is not accepted here — the server stamps it whenever
+        `currentVersion` changes to a new value, so a caller cannot set a release date that
+        disagrees with when the release was actually published. It is what the seven-day nudge
+        window is measured from.
+
+
+        **A mobile rollout must reach 100% before `currentVersion` is raised.** Nothing here can
+        enforce that. Raising it mid-rollout tells brewers to install a build the store will not
+        serve them.
+      tags:
+        - System
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppVersions"
+        description: Payload
+        required: true
+      responses:
+        "200":
+          description: The stored version requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppVersions"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -7485,6 +7577,76 @@ components:
           description: The controller's last reported terminal inventory
           items:
             $ref: '#/components/schemas/ControllerChannel'
+
+    AppVersion:
+      type: string
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+      example: "1.3.0"
+      description: >-
+        A mobile app version, as `major.minor.patch`. This is `expo.version` — what the stores show
+        and what the app can read about itself — deliberately not the build number, which differs
+        per platform and per build of the same release.
+
+
+        Compared by semantic-version precedence, numerically per component, so 1.10.0 is above
+        1.9.0. Pre-release and build suffixes are not accepted: a floor has to be unambiguous to a
+        client that may already be mishandling everything else.
+
+    PlatformAppVersions:
+      type: object
+      description: >-
+        One platform's version requirements.
+
+
+        **Every field is optional, and absence is meaningful rather than an error.** No
+        `minimumSupportedVersion` means no floor is known and nothing blocks — a backend that cannot
+        answer must not be able to brick every installed app at once, so absent is never treated as
+        "below the floor". No `currentVersion`, or no `currentVersionReleasedAt`, means no nudge. A
+        platform with nothing set neither blocks nor nudges anyone, which is also the state before
+        anything has ever been configured.
+
+
+        `minimumSupportedVersion` is the lowest version still permitted to operate: a client
+        strictly below it blocks itself and sends the brewer to the store, equal or above is
+        allowed. It is raised for any reason a version must stop being used, not only a bug — a spec
+        change an old generated client cannot parse, a security issue, or a legal obligation all
+        qualify, which is why neither it nor the screen it drives carries a reason.
+
+
+        `currentVersion` is the newest version published to that platform's store. A client below it
+        and at or above the floor is nudged, but only once the release is seven days old.
+      properties:
+        # Bare $ref on purpose. A `description` beside a $ref is legal 3.1 and ignored by the
+        # generators, but makes openapi-backend's dereferencer emit an invalid ajv schema that takes
+        # the entire laitto-testbed fake backend down at boot. The prose lives above instead.
+        minimumSupportedVersion:
+          $ref: "#/components/schemas/AppVersion"
+        currentVersion:
+          $ref: "#/components/schemas/AppVersion"
+        currentVersionReleasedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: >-
+            When `currentVersion` was set to its present value. Server-maintained and not accepted
+            on write, so it cannot disagree with when the release was actually published. The
+            seven-day nudge window is measured from here; absent means no nudge, whatever
+            `currentVersion` says.
+
+    AppVersions:
+      type: object
+      required:
+        - android
+        - ios
+      description: >-
+        Version requirements for every platform the app ships on. Both platforms are always present
+        and both are always returned, so a client never has to say which one it is — nothing varies
+        by caller, and what a client actually runs is never reported here (see laitto#212).
+      properties:
+        android:
+          $ref: "#/components/schemas/PlatformAppVersions"
+        ios:
+          $ref: "#/components/schemas/PlatformAppVersions"
 
     Error:
       type: object
